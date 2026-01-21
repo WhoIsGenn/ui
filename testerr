@@ -1,0 +1,164 @@
+-- ============================================
+-- VICTORIA HUB FISH IT - FIXED VERSION
+-- ============================================
+
+-- ==================== LOAD UI FRAMEWORK ====================
+local success, Vict = pcall(function()
+    return loadstring(game:HttpGet("https://raw.githubusercontent.com/WhoIsGenn/VICTUI/refs/heads/main/ui.lua"))()
+end)
+
+if not success then
+    game:GetService("StarterGui"):SetCore("SendNotification", {
+        Title = "Victoria Hub",
+        Text = "Failed to load UI Library!",
+        Duration = 5
+    })
+    return
+end
+
+-- ==================== CREATE MAIN WINDOW ====================
+local Window = Vict:Window({
+    Title = "Victoria Hub | Fish It",
+    Size = UDim2.new(0, 600, 0, 400),
+})
+
+-- ==================== TAB 1: INFO ====================
+local Tab1 = Window:Tab({
+    Title = "Info"
+})
+
+Tab1:Paragraph({
+    Title = "Victoria Hub Community",
+    Desc = "Join Our Community Discord Server!",
+    Buttons = {
+        {
+            Title = "Copy Link",
+            Callback = function()
+                if setclipboard then
+                    setclipboard("https://discord.gg/victoriahub")
+                    Window:MakeNotify({
+                        Title = "Success",
+                        Content = "Discord link copied!",
+                        Duration = 3
+                    })
+                end
+            end
+        }
+    }
+})
+
+-- ==================== TAB 2: PLAYERS ====================
+local Tab2 = Window:Tab({
+    Title = "Players"
+})
+
+local otherSection = Tab2:Section({
+    Title = "Movement"
+})
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+-- SPEED (Input instead of Slider)
+otherSection:Input({
+    Title = "Walk Speed",
+    Placeholder = "16",
+    Default = "16",
+    Callback = function(text)
+        local speed = tonumber(text) or 16
+        local humanoid = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            humanoid.WalkSpeed = speed
+        end
+    end
+})
+
+-- JUMP POWER
+otherSection:Input({
+    Title = "Jump Power",
+    Placeholder = "50",
+    Default = "50",
+    Callback = function(text)
+        local jump = tonumber(text) or 50
+        local humanoid = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            humanoid.JumpPower = jump
+        end
+    end
+})
+
+-- INFINITE JUMP
+_G.InfiniteJump = false
+
+otherSection:Toggle({
+    Title = "Infinite Jump",
+    Default = false,
+    Callback = function(state)
+        _G.InfiniteJump = state
+    end
+})
+
+game:GetService("UserInputService").JumpRequest:Connect(function()
+    if _G.InfiniteJump and LocalPlayer.Character then
+        local humanoid = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+        end
+    end
+end)
+
+-- ==================== TAB 3: FISHING ====================
+local Tab3 = Window:Tab({
+    Title = "Fishing"
+})
+
+local fishingSection = Tab3:Section({
+    Title = "Auto Fishing"
+})
+
+_G.AutoFishing = false
+
+-- Simple Auto Fishing Toggle
+fishingSection:Toggle({
+    Title = "Auto Fishing",
+    Default = false,
+    Callback = function(state)
+        _G.AutoFishing = state
+        
+        if state then
+            -- Simple auto fish logic
+            spawn(function()
+                local RS = game:GetService("ReplicatedStorage")
+                local net = RS.Packages._Index["sleitnick_net@0.2.0"].net
+                
+                while _G.AutoFishing do
+                    pcall(function()
+                        -- Equip rod
+                        net["RE/EquipToolFromHotbar"]:FireServer(1)
+                        task.wait(0.5)
+                        
+                        -- Start fishing
+                        net["RF/UpdateAutoFishingState"]:InvokeServer(true)
+                    end)
+                    task.wait(2)
+                end
+                
+                -- Turn off when toggled off
+                pcall(function()
+                    net["RF/UpdateAutoFishingState"]:InvokeServer(false)
+                end)
+            end)
+        end
+    end
+})
+
+-- ==================== FINAL INIT ====================
+Window:MakeNotify({
+    Title = "Victoria Hub Loaded",
+    Content = "UI successfully loaded!",
+    Duration = 3
+})
+
+print("Victoria Hub UI loaded successfully!")
+
+return Window
