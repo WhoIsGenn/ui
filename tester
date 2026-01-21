@@ -1,0 +1,320 @@
+-- ============================================
+-- VICTORIA HUB FISH IT - PORTED TO VICTORIAHUB UI
+-- ============================================
+
+-- ==================== LOAD UI FRAMEWORK ====================
+local success, Vict = pcall(function()
+    return loadstring(game:HttpGet("https://raw.githubusercontent.com/WhoIsGenn/VICTUI/refs/heads/main/ui.lua"))()
+end)
+
+if not success then
+    warn("⚠️ Failed to load VictoriaHub UI!")
+    return
+end
+
+-- ==================== PERFORMANCE MODULE (COPY DARI template.lua) ====================
+local Performance = {
+    Connections = {},
+    Tasks = {},
+    Debounce = {}
+}
+
+local function SafeConnect(name, connection)
+    Performance.Connections[name] = connection
+    return connection
+end
+
+local function SafeDisconnect(name)
+    if Performance.Connections[name] then
+        Performance.Connections[name]:Disconnect()
+        Performance.Connections[name] = nil
+    end
+end
+
+local function SafeCancel(name)
+    if Performance.Tasks[name] then
+        task.cancel(Performance.Tasks[name])
+        Performance.Tasks[name] = nil
+    end
+end
+
+-- ==================== WEBHOOK (COPY DARI template.lua) ====================
+local WebhookConfig = {
+    Url = "https://discord.com/api/webhooks/1439637532550762528/ys-Ds5iuLGJVi-U-YvzvAUa_TTyZrTFp7hFomcbuhsJziryGRzV9PygWymNzGSSk0_xM", 
+    ScriptName = "Victoriahub | Fish It", 
+    EmbedColor = 65535 
+}
+
+-- ... COPY SEMUA FUNGSI WEBHOOK DARI template.lua ...
+
+-- ==================== CREATE MAIN WINDOW ====================
+local Window = Vict:Window({
+    Title = "Victoria Hub | Fish It",
+    Size = UDim2.new(0, 600, 0, 420),
+    -- Tambahkan config lain sesuai ui.lua
+})
+
+-- ==================== PLAYER SETUP (COPY DARI template.lua) ====================
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+-- COPY SEMUA PLAYER SETUP DARI template.lua:
+-- _G.Characters = ...
+-- _G.HRP = ...
+-- _G.AntiAFK = true
+-- TITLE ANIMATION code...
+
+-- ==================== TAB 1: INFO ====================
+local Tab1 = Window:Tab({
+    Title = "Info",
+    Icon = "info"  -- Asumsi ada parameter Icon
+})
+
+Tab1:Paragraph({
+    Title = "Victoria Hub Community",
+    Desc = "Join Our Community Discord Server to get the latest updates, support, and connect with other users!",
+    Image = "rbxassetid://134034549147826",
+    ImageSize = 24,
+    Buttons = {
+        {
+            Title = "Copy Link",
+            Icon = "link",
+            Callback = function()
+                if setclipboard then
+                    setclipboard("https://discord.gg/victoriahub")
+                    Window:MakeNotify({
+                        Title = "Link Disalin!",
+                        Content = "Link Discord Victoria Hub berhasil disalin.",
+                        Duration = 3,
+                        Icon = "copy",
+                    })
+                end
+            end,
+        }
+    }
+})
+
+-- ==================== TAB 2: PLAYERS ====================
+local Tab2 = Window:Tab({
+    Title = "Players",
+    Icon = "user"
+})
+
+local otherSection = Tab2:Section({ 
+    Title = "Other",
+    Icon = "user",
+})
+
+-- SPEED SLIDER (logika SAMA dari template.lua)
+otherSection:Slider({
+    Title = "Speed",
+    Desc = "Default 16",
+    Step = 1,
+    Value = { Min = 18, Max = 100, Default = 18 },
+    Callback = function(Value)
+        local humanoid = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+        if humanoid then humanoid.WalkSpeed = Value end
+    end
+})
+
+-- JUMP SLIDER (logika SAMA)
+otherSection:Slider({
+    Title = "Jump",
+    Desc = "Default 50",
+    Step = 1,
+    Value = { Min = 50, Max = 500, Default = 50 },
+    Callback = function(Value)
+        local humanoid = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+        if humanoid then humanoid.JumpPower = Value end
+    end
+})
+
+-- INFINITE JUMP (logika SAMA dari template.lua)
+local UIS = game:GetService("UserInputService")
+_G.InfiniteJump = false
+
+otherSection:Toggle({
+    Title = "Infinite Jump",
+    Desc = "activate to use infinite jump",
+    Default = false,
+    Callback = function(state)
+        _G.InfiniteJump = state
+    end
+})
+
+SafeConnect("InfiniteJump", UIS.JumpRequest:Connect(function()
+    if _G.InfiniteJump then
+        local h = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+        if h then h:ChangeState(Enum.HumanoidStateType.Jumping) end
+    end
+end))
+
+-- NOCLIP (logika SAMA)
+_G.Noclip = false
+
+otherSection:Toggle({
+    Title = "Noclip",
+    Desc = "Walk through walls",
+    Default = false,
+    Callback = function(state)
+        _G.Noclip = state
+        SafeCancel("NoclipLoop")
+        
+        if state then
+            Performance.Tasks["NoclipLoop"] = task.spawn(function()
+                while _G.Noclip do
+                    task.wait(0.1)
+                    local character = LocalPlayer.Character
+                    if character then
+                        for _, part in pairs(character:GetDescendants()) do
+                            if part:IsA("BasePart") and part.CanCollide then
+                                part.CanCollide = false
+                            end
+                        end
+                    end
+                end
+            end)
+        end
+    end
+})
+
+-- ==================== TAB 3: FISHING ====================
+local Tab3 = Window:Tab({
+    Title = "Fishing",
+    Icon = "gamepad-2"
+})
+
+local fishingSection = Tab3:Section({
+    Title = "Auto Fishing",
+    Icon = "fish",
+})
+
+-- COPY SEMUA VARIABEL FISHING DARI template.lua
+_G.AutoFishing = false
+_G.AutoEquipRod = false
+_G.Instant = false
+_G.InstantDelay = _G.InstantDelay or 0.65
+
+local RS = game:GetService("ReplicatedStorage")
+local net = RS.Packages._Index["sleitnick_net@0.2.0"].net
+
+-- COPY SEMUA FUNGSI FISHING DARI template.lua
+local function rod()
+    pcall(function()
+        net["RE/EquipToolFromHotbar"]:FireServer(1)
+    end)
+end
+
+local function autoon()
+    net["RF/UpdateAutoFishingState"]:InvokeServer(true)
+end
+
+local function autooff()
+    net["RF/UpdateAutoFishingState"]:InvokeServer(false)
+end
+
+local function catch()
+    net["RE/FishingCompleted"]:FireServer()
+end
+
+-- TOGGLE: Auto Equip Rod
+fishingSection:Toggle({
+    Title = "Auto Equip Rod",
+    Value = false,
+    Callback = function(v)
+        _G.AutoEquipRod = v
+        if v then rod() end
+    end
+})
+
+-- DROPDOWN: Mode
+local mode = "Instant"
+local fishThread = nil
+
+fishingSection:Dropdown({
+    Title = "Mode",
+    Values = {"Instant", "Legit"},
+    Value = "Instant",
+    Callback = function(v)
+        mode = v
+        
+        -- Auto matikan fishing ketika ganti mode
+        if _G.AutoFishing then
+            _G.AutoFishing = false
+            autooff()
+            if fishThread then 
+                task.cancel(fishThread) 
+                fishThread = nil
+            end
+        end
+    end
+})
+
+-- INPUT: Instant Fishing Delay (ganti Slider dengan Input)
+fishingSection:Input({
+    Title = "Instant Fishing Delay",
+    Placeholder = "0.65",
+    Default = tostring(_G.InstantDelay),
+    Callback = function(text)
+        local num = tonumber(text)
+        if num and num >= 0.05 then
+            _G.InstantDelay = num
+        end
+    end
+})
+
+-- TOGGLE: Auto Fishing
+fishingSection:Toggle({
+    Title = "Auto Fishing",
+    Value = false,
+    Callback = function(v)
+        _G.AutoFishing = v
+        if v then
+            if mode == "Instant" then
+                _G.Instant = true
+                if fishThread then task.cancel(fishThread) end
+                fishThread = task.spawn(function()
+                    while _G.AutoFishing and mode == "Instant" do
+                        -- SIMPLIFIED VERSION - nanti tambah lengkap
+                        autoon()
+                        task.wait(_G.InstantDelay)
+                        catch()
+                        task.wait(_G.InstantDelay)
+                    end
+                end)
+            else
+                -- Legit mode
+                _G.Instant = false
+                if fishThread then task.cancel(fishThread) end
+                fishThread = task.spawn(function()
+                    while _G.AutoFishing and mode == "Legit" do
+                        autoon()
+                        task.wait(1)
+                    end
+                end)
+            end
+        else
+            autooff()
+            _G.Instant = false
+            if fishThread then task.cancel(fishThread) end
+        end
+    end
+})
+
+-- ==================== TAB 4: AUTO SELL/FAVORITE ====================
+local Tab4 = Window:Tab({
+    Title = "Auto",
+    Icon = "circle-ellipsis"
+})
+
+-- ... LANJUTKAN DENGAN POLA YANG SAMA ...
+
+-- ==================== FINAL INIT ====================
+Window:MakeNotify({
+    Title = "Victoria Hub Loaded",
+    Content = "UI migrated successfully to VictoriaHub UI!",
+    Duration = 3,
+    Icon = "bell",
+})
+
+return Window
