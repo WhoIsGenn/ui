@@ -79,6 +79,8 @@ local Window = Vict:Window({
     Image = "96751490485303"
 })
 
+LoadConfigFromFile()
+
 -- ==================== PLAYER SETUP ====================
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
