@@ -502,7 +502,7 @@ function vict:Window(GuiConfig)
     GuiConfig.Icon         = GuiConfig.Icon or "rbxassetid://79482005659181"
 
     CURRENT_VERSION        = GuiConfig.Version
-     LoadConfigFromFile()
+     -- LoadConfigFromFile()
 
     local GuiFunc = {}
 
@@ -2837,6 +2837,10 @@ function vict:Window(GuiConfig)
     end
 
     return Tabs
+end
+
+function FinalizeConfigLoad(name)
+    LoadConfigFromFile(name)
 end
 
 return vict
