@@ -1,4 +1,3 @@
-
 local HttpService = game:GetService("HttpService")
 
 local ConfigPath = "VictoriaHub/Config/"
@@ -8,38 +7,14 @@ if not isfolder("VictoriaHub/Config") then makefolder("VictoriaHub/Config") end
 
 ConfigData = {}
 Elements = {} 
-CURRENT_VERSION = 1
-
--- Helper function untuk sanitize key
-local function sanitizeKey(key)
-    return tostring(key):gsub("[%s%-]", "_"):gsub("[^%w_]", "")
-end
+CURRENT_VERSION = nil
 
 function SaveConfig(name)
     local fileName = ConfigPath .. (name or "Default") .. ".json"
     
     if writefile then
-        -- Update ConfigData dengan nilai terkini dari semua element
-        for key, element in pairs(Elements) do
-            if element.GetValue then
-                ConfigData[key] = element:GetValue()
-            elseif element.Value ~= nil then
-                ConfigData[key] = element.Value
-            end
-        end
-        
         ConfigData._version = CURRENT_VERSION
-        ConfigData._save_time = os.time()
-        
-        local success, err = pcall(function()
-            writefile(fileName, HttpService:JSONEncode(ConfigData))
-        end)
-        
-        if not success then
-            warn("[VictoriaHub] Failed to save config:", err)
-        else
-            print("[VictoriaHub] Config saved to", fileName)
-        end
+        writefile(fileName, HttpService:JSONEncode(ConfigData))
     end
 end
 
@@ -48,63 +23,37 @@ function LoadConfigFromFile(name)
     
     if isfile and isfile(fileName) then
         local success, result = pcall(function()
-            local content = readfile(fileName)
-            return HttpService:JSONDecode(content)
+            return HttpService:JSONDecode(readfile(fileName))
         end)
         
         if success and type(result) == "table" then
-            -- Check version compatibility
-            if result._version and result._version <= CURRENT_VERSION then
-                ConfigData = result
-                print("[VictoriaHub] Config loaded from", fileName, "version:", result._version)
-                
-                -- Load semua element yang sudah terdaftar
-                if LoadConfigElements then
-                    LoadConfigElements()
-                end
-                
-                -- Simpan konfigurasi yang sudah diload (untuk elemen baru)
-                task.delay(0.5, function()
-                    SaveConfig(name)
-                end)
-                
-                return true
-            else
-                warn("[VictoriaHub] Config version mismatch or corrupted")
+            ConfigData = result
+            
+            if LoadConfigElements then
+                LoadConfigElements()
             end
-        else
-            warn("[VictoriaHub] Failed to load config:", result)
+            return true
         end
     end
     return false
 end
 
 function LoadConfigElements()
-    print("[VictoriaHub] Loading config elements... Total:", #Elements)
-    
     for key, element in pairs(Elements) do
         local targetValue = ConfigData[key]
         
         if element.Set then
             if targetValue ~= nil then
-                -- Apply saved value
-                local success, err = pcall(function()
-                    element:Set(targetValue)
-                end)
-                
-                if not success then
-                    warn("[VictoriaHub] Failed to load element", key, ":", err)
-                end
+                element:Set(targetValue)
             else
-                -- Set default value berdasarkan type
                 if element.Type == "Toggle" then
-                    element:Set(element.Default or false)
+                    element:Set(false)
                 elseif element.Type == "Slider" then
-                    element:Set(element.Default or element.Min or 0)
+                    element:Set(element.Default or 0)
                 elseif element.Type == "Dropdown" then
-                    element:Set(element.Default or (element.Multi and {} or nil))
-                elseif element.Type == "Input" then
                     element:Set(element.Default or "")
+                elseif element.Type == "Input" then
+                    element:Set("")
                 end
             end
         end
@@ -996,7 +945,7 @@ function vict:Window(GuiConfig)
         MainButton.Size = UDim2.new(0, 40, 0, 40)
         MainButton.Position = UDim2.new(0, 20, 0, 100)
         MainButton.BackgroundTransparency = 1
-        MainButton.Image = "rbxassetid://" .. (GuiConfig.Icon or "79482005659181")
+        MainButton.Image = "rbxassetid://" .. GuiConfig.Image
         MainButton.ScaleType = Enum.ScaleType.Fit
 
         local UICorner = Instance.new("UICorner")
@@ -1714,7 +1663,7 @@ function vict:Window(GuiConfig)
                 PanelConfig.SubButtonCallback = PanelConfig.SubCallback or PanelConfig.SubButtonCallback or
                     function() end
 
-                local configKey = "Panel_" .. sanitizeKey(PanelConfig.Title)
+                local configKey = "Panel_" .. PanelConfig.Title
                 if ConfigData[configKey] ~= nil then
                     PanelConfig.Default = ConfigData[configKey]
                 end
@@ -1849,21 +1798,12 @@ function vict:Window(GuiConfig)
                     InputBox.FocusLost:Connect(function()
                         PanelFunc.Value = InputBox.Text
                         ConfigData[configKey] = InputBox.Text
-                        SaveConfig()
+                         SaveConfig()
                     end)
                 end
 
-                function PanelFunc:GetValue()
+                function PanelFunc:GetInput()
                     return InputBox and InputBox.Text or ""
-                end
-
-                function PanelFunc:Set(value)
-                    if InputBox then
-                        InputBox.Text = value
-                        PanelFunc.Value = value
-                        ConfigData[configKey] = value
-                        SaveConfig()
-                    end
                 end
 
                 CountItem = CountItem + 1
@@ -1937,16 +1877,12 @@ function vict:Window(GuiConfig)
                 ToggleConfig.Default = ToggleConfig.Default or false
                 ToggleConfig.Callback = ToggleConfig.Callback or function() end
 
-                local configKey = "Toggle_" .. sanitizeKey(ToggleConfig.Title)
+                local configKey = "Toggle_" .. ToggleConfig.Title
                 if ConfigData[configKey] ~= nil then
                     ToggleConfig.Default = ConfigData[configKey]
                 end
 
-                local ToggleFunc = { 
-                    Value = ToggleConfig.Default,
-                    Type = "Toggle",
-                    Default = ToggleConfig.Default
-                }
+                local ToggleFunc = { Value = ToggleConfig.Default }
                 
                 local isInCallback = false
 
@@ -2076,10 +2012,6 @@ function vict:Window(GuiConfig)
                     ToggleFunc:Set(ToggleFunc.Value)
                 end)
 
-                function ToggleFunc:GetValue()
-                    return self.Value
-                end
-
                 function ToggleFunc:Set(Value)
                     ToggleFunc.Value = Value
                     ConfigData[configKey] = Value
@@ -2109,7 +2041,6 @@ function vict:Window(GuiConfig)
                                 end
                             end
                             
-                            SaveConfig() -- Simpan setiap perubahan
                             task.wait(0.05)
                             isInCallback = false
                         end)
@@ -2118,6 +2049,7 @@ function vict:Window(GuiConfig)
 
                 ToggleFunc:Set(ToggleFunc.Value)
                 CountItem = CountItem + 1
+                ToggleFunc.Type = "Toggle"
                 Elements[configKey] = ToggleFunc
                 return ToggleFunc
             end
@@ -2132,18 +2064,12 @@ function vict:Window(GuiConfig)
                 SliderConfig.Default = SliderConfig.Default or 50
                 SliderConfig.Callback = SliderConfig.Callback or function() end
 
-                local configKey = "Slider_" .. sanitizeKey(SliderConfig.Title)
+                local configKey = "Slider_" .. SliderConfig.Title
                 if ConfigData[configKey] ~= nil then
                     SliderConfig.Default = ConfigData[configKey]
                 end
 
-                local SliderFunc = { 
-                    Value = SliderConfig.Default,
-                    Type = "Slider",
-                    Min = SliderConfig.Min,
-                    Max = SliderConfig.Max,
-                    Default = SliderConfig.Default
-                }
+                local SliderFunc = { Value = SliderConfig.Default }
 
                 local Slider = Instance.new("Frame");
                 local UICorner15 = Instance.new("UICorner");
@@ -2233,7 +2159,7 @@ function vict:Window(GuiConfig)
                 UICorner16.Parent = SliderInput
 
                 TextBox.Font = Enum.Font.GothamBold
-                TextBox.Text = tostring(SliderConfig.Default)
+                TextBox.Text = "90"
                 TextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
                 TextBox.TextSize = 15
                 TextBox.TextWrapped = true
@@ -2290,11 +2216,6 @@ function vict:Window(GuiConfig)
                     end
                     return Result
                 end
-                
-                function SliderFunc:GetValue()
-                    return self.Value
-                end
-                
                 function SliderFunc:Set(Value)
                     Value = math.clamp(Round(Value, SliderConfig.Increment), SliderConfig.Min, SliderConfig.Max)
                     SliderFunc.Value = Value
@@ -2307,7 +2228,7 @@ function vict:Window(GuiConfig)
 
                     SliderConfig.Callback(Value)
                     ConfigData[configKey] = Value
-                    SaveConfig()
+                     SaveConfig()
                 end
 
                 SliderFrame.InputBegan:Connect(function(Input)
@@ -2361,6 +2282,7 @@ function vict:Window(GuiConfig)
                 end)
                 SliderFunc:Set(SliderConfig.Default)
                 CountItem = CountItem + 1
+                SliderFunc.Type = "Slider"
                 Elements[configKey] = SliderFunc
                 return SliderFunc
             end
@@ -2373,16 +2295,12 @@ function vict:Window(GuiConfig)
                 InputConfig.Callback = InputConfig.Callback or function() end
                 InputConfig.Default = InputConfig.Default or ""
 
-                local configKey = "Input_" .. sanitizeKey(InputConfig.Title)
+                local configKey = "Input_" .. InputConfig.Title
                 if ConfigData[configKey] ~= nil then
                     InputConfig.Default = ConfigData[configKey]
                 end
 
-                local InputFunc = { 
-                    Value = InputConfig.Default,
-                    Type = "Input",
-                    Default = InputConfig.Default
-                }
+                local InputFunc = { Value = InputConfig.Default }
 
                 local Input = Instance.new("Frame");
                 local UICorner12 = Instance.new("UICorner");
@@ -2483,17 +2401,12 @@ function vict:Window(GuiConfig)
                 InputTextBox.Name = "InputTextBox"
                 InputTextBox.Parent = InputFrame
                 InputTextBox.ClearTextOnFocus = false
-                
-                function InputFunc:GetValue()
-                    return self.Value
-                end
-                
                 function InputFunc:Set(Value)
                     InputTextBox.Text = Value
                     InputFunc.Value = Value
                     InputConfig.Callback(Value)
                     ConfigData[configKey] = Value
-                    SaveConfig()
+                     SaveConfig()
                 end
 
                 InputFunc:Set(InputFunc.Value)
@@ -2502,6 +2415,7 @@ function vict:Window(GuiConfig)
                     InputFunc:Set(InputTextBox.Text)
                 end)
                 CountItem = CountItem + 1
+                InputFunc.Type = "Input"
                 Elements[configKey] = InputFunc
                 return InputFunc
             end
@@ -2515,18 +2429,12 @@ function vict:Window(GuiConfig)
                 DropdownConfig.Default = DropdownConfig.Default or (DropdownConfig.Multi and {} or nil)
                 DropdownConfig.Callback = DropdownConfig.Callback or function() end
 
-                local configKey = "Dropdown_" .. sanitizeKey(DropdownConfig.Title)
+                local configKey = "Dropdown_" .. DropdownConfig.Title
                 if ConfigData[configKey] ~= nil then
                     DropdownConfig.Default = ConfigData[configKey]
                 end
 
-                local DropdownFunc = { 
-                    Value = DropdownConfig.Default, 
-                    Options = DropdownConfig.Options,
-                    Type = "Dropdown",
-                    Multi = DropdownConfig.Multi,
-                    Default = DropdownConfig.Default
-                }
+                local DropdownFunc = { Value = DropdownConfig.Default, Options = DropdownConfig.Options }
 
                 local Dropdown = Instance.new("Frame")
                 local DropdownButton = Instance.new("TextButton")
@@ -2675,10 +2583,6 @@ function vict:Window(GuiConfig)
 
                 local DropCount = 0
 
-                function DropdownFunc:GetValue()
-                    return self.Value
-                end
-
                 function DropdownFunc:Clear()
                     for _, DropFrame in ScrollSelect:GetChildren() do
                         if DropFrame.Name == "Option" then
@@ -2776,7 +2680,7 @@ function vict:Window(GuiConfig)
                     end
 
                     ConfigData[configKey] = DropdownFunc.Value
-                    SaveConfig()
+                     SaveConfig()
 
                     local texts = {}
                     for _, Drop in ScrollSelect:GetChildren() do
@@ -2839,6 +2743,7 @@ function vict:Window(GuiConfig)
 
                 CountItem = CountItem + 1
                 CountDropdown = CountDropdown + 1
+                DropdownFunc.Type = "Dropdown"
                 Elements[configKey] = DropdownFunc
                 return DropdownFunc
             end
@@ -2915,12 +2820,9 @@ function vict:Window(GuiConfig)
         return Sections
     end
 
-    -- Auto load config setelah semua element dibuat
-    task.delay(0.5, function()
-        LoadConfigFromFile()
-    end)
-
     return Tabs
 end
+
+LoadConfigFromFile()
 
 return vict
