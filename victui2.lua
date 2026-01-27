@@ -1,4 +1,4 @@
-local HttpService = game:GetService("HttpService") -- V0.0.1
+local HttpService = game:GetService("HttpService")
 
 if not isfolder("VictoriaHub") then
     makefolder("VictoriaHub")
@@ -11,7 +11,7 @@ local gameName   = tostring(game:GetService("MarketplaceService"):GetProductInfo
 gameName         = gameName:gsub("[^%w_ ]", "")
 gameName         = gameName:gsub("%s+", "_")
 
-local ConfigFile = "VictoriaHub/Config/CHX_" .. gameName .. ".json"
+local ConfigFile = "VictoriaHub/Config/VCT_" .. gameName .. ".json"
 
 ConfigData       = {}
 Elements         = {}
