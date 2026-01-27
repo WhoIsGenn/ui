@@ -83,13 +83,6 @@ local Window = Vict:Window({
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
--- Notification function
-local function notif(text, duration, color)
-    if Window and Window.notif then
-        Window.notif(text, duration, color)
-    end
-end
-
 -- ANTI-AFK
 _G.AntiAFK = true
 local VirtualUser = game:GetService("VirtualUser")
@@ -207,8 +200,10 @@ playerSection:AddInput({
             local humanoid = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
             if humanoid then 
                 humanoid.WalkSpeed = num 
-                notif("Walk Speed set to " .. num, 2, Color3.fromRGB(0, 170, 255))
+                notif("Walk Speed set to " .. num, 3, Color3.fromRGB(0, 255, 0))
             end
+        else
+            notif("Invalid Walk Speed!", 3, Color3.fromRGB(255, 0, 0))
         end
     end
 })
@@ -225,8 +220,10 @@ playerSection:AddInput({
             local humanoid = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
             if humanoid then 
                 humanoid.JumpPower = num 
-                notif("Jump Power set to " .. num, 2, Color3.fromRGB(0, 170, 255))
+                notif("Jump Power set to " .. num, 3, Color3.fromRGB(0, 255, 0))
             end
+        else
+            notif("Invalid Jump Power!", 3, Color3.fromRGB(255, 0, 0))
         end
     end
 })
@@ -240,7 +237,7 @@ playerSection:AddToggle({
     Default = false,
     Callback = function(state)
         _G.InfiniteJump = state
-        notif("Infinite Jump " .. (state and "enabled" or "disabled"), 2, state and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0))
+        notif("Infinite Jump: " .. (state and "Enabled" or "Disabled"), 3, state and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0))
     end
 })
 
@@ -262,7 +259,6 @@ playerSection:AddToggle({
     Default = false,
     Callback = function(state)
         _G.Noclip = state
-        notif("Noclip " .. (state and "enabled" or "disabled"), 2, state and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0))
         
         if noclipThread then
             task.cancel(noclipThread)
@@ -284,6 +280,8 @@ playerSection:AddToggle({
                 end
             end)
         end
+        
+        notif("Noclip: " .. (state and "Enabled" or "Disabled"), 3, state and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0))
     end
 })
 
@@ -296,8 +294,6 @@ playerSection:AddToggle({
     Default = false,
     Callback = function(s)
         frozen = s
-        notif("Character " .. (s and "frozen" or "unfrozen"), 2, s and Color3.fromRGB(255, 165, 0) or Color3.fromRGB(0, 255, 0))
-        
         local character = LocalPlayer.Character
         if not character then return end
         
@@ -312,6 +308,7 @@ playerSection:AddToggle({
             humanoid.AutoRotate = false
             humanoid.PlatformStand = true
             hrp.Anchored = true
+            notif("Character Frozen", 3, Color3.fromRGB(0, 255, 0))
         else
             humanoid.WalkSpeed = 16
             humanoid.JumpPower = 50
@@ -321,6 +318,7 @@ playerSection:AddToggle({
             if lastCFrame then
                 hrp.CFrame = lastCFrame
             end
+            notif("Character Unfrozen", 3, Color3.fromRGB(255, 0, 0))
         end
     end
 })
@@ -334,8 +332,6 @@ playerSection:AddToggle({
     Default = false,
     Callback = function(state)
         animDisabled = state
-        notif("Animations " .. (state and "disabled" or "enabled"), 2, state and Color3.fromRGB(255, 0, 0) or Color3.fromRGB(0, 255, 0))
-        
         local character = LocalPlayer.Character
         if not character then return end
         
@@ -356,6 +352,7 @@ playerSection:AddToggle({
                     end)
                 end
             end)
+            notif("Animations Disabled", 3, Color3.fromRGB(0, 255, 0))
         else
             if animConn then animConn:Disconnect(); animConn = nil end
             local animate = character:FindFirstChild("Animate")
@@ -363,6 +360,7 @@ playerSection:AddToggle({
             humanoid:ChangeState(Enum.HumanoidStateType.Physics)
             task.wait()
             humanoid:ChangeState(Enum.HumanoidStateType.Running)
+            notif("Animations Enabled", 3, Color3.fromRGB(255, 0, 0))
         end
     end
 })
@@ -377,7 +375,6 @@ playerSection:AddToggle({
     Default = false,
     Callback = function(state)
         isWalkOnWater = state
-        notif("Walk on Water " .. (state and "enabled" or "disabled"), 2, state and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0))
         
         if walkOnWaterConnection then
             walkOnWaterConnection:Disconnect()
@@ -397,6 +394,7 @@ playerSection:AddToggle({
             waterPlatform.Transparency = 1
             waterPlatform.Size = Vector3.new(15, 1, 15)
             waterPlatform.Parent = workspace
+            notif("Walk on Water: Enabled", 3, Color3.fromRGB(0, 255, 0))
 
             walkOnWaterConnection = game:GetService("RunService").RenderStepped:Connect(function()
                 if not isWalkOnWater then return end
@@ -431,6 +429,8 @@ playerSection:AddToggle({
                     waterPlatform.Position = Vector3.new(hrp.Position.X, -500, hrp.Position.Z)
                 end
             end)
+        else
+            notif("Walk on Water: Disabled", 3, Color3.fromRGB(255, 0, 0))
         end
     end
 })
@@ -525,7 +525,6 @@ fishingSection:AddToggle({
     Default = false,
     Callback = function(v)
         _G.AutoFishing = v
-        notif("Auto Fishing " .. (v and "started" or "stopped"), 2, v and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0))
         
         if fishThread then
             task.cancel(fishThread)
@@ -548,8 +547,10 @@ fishingSection:AddToggle({
                     end
                 end)
             end
+            notif("Auto Fishing: " .. mode .. " Mode", 3, Color3.fromRGB(0, 255, 0))
         else
             autooff()
+            notif("Auto Fishing: Disabled", 3, Color3.fromRGB(255, 0, 0))
         end
     end
 })
@@ -563,7 +564,6 @@ fishingSection:AddDropdown({
     Default = "Instant",
     Callback = function(v)
         mode = v
-        notif("Fishing mode set to " .. v, 2, Color3.fromRGB(0, 170, 255))
         
         -- Stop fishing when switching modes
         if _G.AutoFishing then
@@ -574,6 +574,8 @@ fishingSection:AddDropdown({
                 fishThread = nil
             end
         end
+        
+        notif("Fishing Mode: " .. v, 3, Color3.fromRGB(0, 170, 255))
     end
 })
 
@@ -585,7 +587,9 @@ fishingSection:AddInput({
         local num = tonumber(v)
         if num and num >= 0.05 and num <= 5 then
             _G.InstantDelay = num
-            notif("Instant delay set to " .. num .. "s", 2, Color3.fromRGB(0, 170, 255))
+            notif("Instant Delay: " .. num .. "s", 3, Color3.fromRGB(0, 255, 0))
+        else
+            notif("Invalid delay!", 3, Color3.fromRGB(255, 0, 0))
         end
     end
 })
@@ -596,9 +600,11 @@ fishingSection:AddToggle({
     Default = false,
     Callback = function(v)
         _G.AutoEquipRod = v
-        notif("Auto Equip Rod " .. (v and "enabled" or "disabled"), 2, v and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0))
         if v then
             rod()
+            notif("Auto Equip Rod: Enabled", 3, Color3.fromRGB(0, 255, 0))
+        else
+            notif("Auto Equip Rod: Disabled", 3, Color3.fromRGB(255, 0, 0))
         end
     end
 })
@@ -610,11 +616,11 @@ fishingSection:AddToggle({
     Default = false,
     Callback = function(s)
         radarEnabled = s
-        notif("Radar Bypass " .. (s and "enabled" or "disabled"), 2, s and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0))
         local RS, L = game.ReplicatedStorage, game.Lighting
         if require(RS.Packages.Replion).Client:GetReplion("Data") then
             require(RS.Packages.Net):RemoteFunction("UpdateFishingRadar"):InvokeServer(s)
         end
+        notif("Bypass Radar: " .. (s and "Enabled" or "Disabled"), 3, s and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0))
     end
 })
 
@@ -623,11 +629,12 @@ fishingSection:AddToggle({
     Title = "Bypass Oxygen",
     Default = false,
     Callback = function(s)
-        notif("Oxygen Bypass " .. (s and "enabled" or "disabled"), 2, s and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0))
         if s then 
             net["RF/EquipOxygenTank"]:InvokeServer(105)
+            notif("Oxygen Tank Equipped", 3, Color3.fromRGB(0, 255, 0))
         else 
-            net["RF/UnequipOxygenTank"]:InvokeServer() 
+            net["RF/UnequipOxygenTank"]:InvokeServer()
+            notif("Oxygen Tank Unequipped", 3, Color3.fromRGB(255, 0, 0))
         end
     end
 })
@@ -647,7 +654,9 @@ blatantV1Section:AddInput({
         local num = tonumber(v)
         if num and num > 0 then
             c.e = num
-            notif("Cancel delay set to " .. num .. "s", 2, Color3.fromRGB(0, 170, 255))
+            notif("Cancel Delay: " .. num .. "s", 3, Color3.fromRGB(0, 255, 0))
+        else
+            notif("Invalid delay!", 3, Color3.fromRGB(255, 0, 0))
         end
     end
 })
@@ -660,7 +669,9 @@ blatantV1Section:AddInput({
         local num = tonumber(v)
         if num and num > 0 then
             c.f = num
-            notif("Complete delay set to " .. num .. "s", 2, Color3.fromRGB(0, 170, 255))
+            notif("Complete Delay: " .. num .. "s", 3, Color3.fromRGB(0, 255, 0))
+        else
+            notif("Invalid delay!", 3, Color3.fromRGB(255, 0, 0))
         end
     end
 })
@@ -671,7 +682,6 @@ blatantV1Section:AddToggle({
     Default = false,
     Callback = function(z2)
         c.d = z2
-        notif("Blatant V1 " .. (z2 and "enabled" or "disabled"), 2, z2 and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0))
         if z2 then
             if m then task.cancel(m) end
             if n then task.cancel(n) end
@@ -708,6 +718,7 @@ blatantV1Section:AddToggle({
                     task.wait(0.1)
                 end
             end)
+            notif("Blatant V1: Enabled", 3, Color3.fromRGB(0, 255, 0))
         else
             if m then task.cancel(m) end
             if n then task.cancel(n) end
@@ -716,6 +727,7 @@ blatantV1Section:AddToggle({
             pcall(function()
                 net["RF/CancelFishingInputs"]:InvokeServer()
             end)
+            notif("Blatant V1: Disabled", 3, Color3.fromRGB(255, 0, 0))
         end
     end
 })
@@ -738,7 +750,9 @@ blatantV2Section:AddInput({
         local num = tonumber(v)
         if num and num >= 0 then
             _G.ReelSuper = num
-            notif("Reel delay set to " .. num .. "s", 2, Color3.fromRGB(0, 170, 255))
+            notif("Reel Delay: " .. num .. "s", 3, Color3.fromRGB(0, 255, 0))
+        else
+            notif("Invalid delay!", 3, Color3.fromRGB(255, 0, 0))
         end
     end
 })
@@ -751,7 +765,9 @@ blatantV2Section:AddInput({
         local num = tonumber(v)
         if num and num > 0 then
             toggleState.completeDelays = num
-            notif("Complete delay set to " .. num .. "s", 2, Color3.fromRGB(0, 170, 255))
+            notif("Complete Delay: " .. num .. "s", 3, Color3.fromRGB(0, 255, 0))
+        else
+            notif("Invalid delay!", 3, Color3.fromRGB(255, 0, 0))
         end
     end
 })
@@ -762,7 +778,6 @@ blatantV2Section:AddToggle({
     Default = false,
     Callback = function(value)
         toggleState.blatantRunning = value
-        notif("Blatant V2 " .. (value and "enabled" or "disabled"), 2, value and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0))
         
         if value then
             isSuperInstantRunning = true
@@ -780,8 +795,10 @@ blatantV2Section:AddToggle({
                     task.wait(math.max(_G.ReelSuper))
                 end
             end)
+            notif("Blatant V2: Enabled", 3, Color3.fromRGB(0, 255, 0))
         else
             isSuperInstantRunning = false
+            notif("Blatant V2: Disabled", 3, Color3.fromRGB(255, 0, 0))
         end
     end
 })
@@ -809,7 +826,7 @@ blatantV1Section:AddButton({
         -- Reset rod
         pcall(function() net["RE/EquipToolFromHotbar"]:FireServer(1) end)
         
-        notif("Fishing recovery executed", 2, Color3.fromRGB(0, 255, 255))
+        notif("Fishing Recovery Applied", 3, Color3.fromRGB(0, 170, 255))
     end
 })
 
@@ -835,7 +852,7 @@ blatantV2Section:AddButton({
         -- Reset rod
         pcall(function() net["RE/EquipToolFromHotbar"]:FireServer(1) end)
         
-        notif("Fishing recovery executed", 2, Color3.fromRGB(0, 255, 255))
+        notif("Fishing Recovery Applied", 3, Color3.fromRGB(0, 170, 255))
     end
 })
 
@@ -859,14 +876,15 @@ autoPerfectionSection:AddToggle({
     Default = false,
     Callback = function(s)
         ap = s
-        notif("Stable Result " .. (s and "enabled" or "disabled"), 2, s and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0))
         if s then
             FC.RequestFishingMinigameClick = function() end
             FC.RequestChargeFishingRod = function() end
+            notif("Stable Result: Enabled", 3, Color3.fromRGB(0, 255, 0))
         else
             net["RF/UpdateAutoFishingState"]:InvokeServer(false)
             FC.RequestFishingMinigameClick = oc
             FC.RequestChargeFishingRod = orc
+            notif("Stable Result: Disabled", 3, Color3.fromRGB(255, 0, 0))
         end
     end
 })
@@ -1111,7 +1129,9 @@ sellSection:AddInput({
         local num = tonumber(v)
         if num and num > 0 then 
             SellAt = math.floor(num)
-            notif("Auto sell threshold set to " .. SellAt, 2, Color3.fromRGB(0, 170, 255))
+            notif("Auto Sell Threshold: " .. SellAt, 3, Color3.fromRGB(0, 255, 0))
+        else
+            notif("Invalid threshold!", 3, Color3.fromRGB(255, 0, 0))
         end
     end
 })
@@ -1122,7 +1142,7 @@ sellSection:AddToggle({
     Default = false,
     Callback = function(state)
         AutoSell = state
-        notif("Auto Sell " .. (state and "enabled" or "disabled"), 2, state and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0))
+        notif("Auto Sell: " .. (state and "Enabled" or "Disabled"), 3, state and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0))
     end
 })
 
@@ -1137,7 +1157,6 @@ game:GetService("RunService").Heartbeat:Connect(function()
         
         pcall(function() 
             SellAllRF:InvokeServer() 
-            notif("Auto selling " .. fishCount .. " fish...", 2, Color3.fromRGB(255, 215, 0))
         end)
         
         task.delay(1.5, function() 
@@ -1193,7 +1212,7 @@ favSection:AddDropdown({
     Multi = true,
     Callback = function(v)
         GlobalFav.SelectedFish = v
-        notif("Selected " .. #v .. " fish for auto-favorite", 2, Color3.fromRGB(0, 170, 255))
+        notif("Selected " .. #v .. " fish types", 3, Color3.fromRGB(0, 170, 255))
     end
 })
 
@@ -1205,7 +1224,7 @@ favSection:AddDropdown({
     Multi = true,
     Callback = function(v)
         GlobalFav.SelectedVariants = v
-        notif("Selected " .. #v .. " variants for auto-favorite", 2, Color3.fromRGB(0, 170, 255))
+        notif("Selected " .. #v .. " variants", 3, Color3.fromRGB(0, 170, 255))
     end
 })
 
@@ -1215,7 +1234,7 @@ favSection:AddToggle({
     Default = false,
     Callback = function(state)
         GlobalFav.AutoFavoriteEnabled = state
-        notif("Auto Favorite " .. (state and "enabled" or "disabled"), 2, state and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0))
+        notif("Auto Favorite: " .. (state and "Enabled" or "Disabled"), 3, state and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0))
     end
 })
 
@@ -1225,7 +1244,7 @@ favSection:AddButton({
     Callback = function()
         GlobalFav.SelectedFish = {}
         GlobalFav.SelectedVariants = {}
-        notif("Selection reset", 2, Color3.fromRGB(255, 165, 0))
+        notif("Selection Reset", 3, Color3.fromRGB(0, 170, 255))
     end
 })
 
@@ -1278,7 +1297,6 @@ REObtainedNewFishNotification.OnClientEvent:Connect(function(itemId, _, data)
     if shouldFavorite then
         pcall(function()
             REFavoriteItem:FireServer(uuid)
-            notif("Auto-favorited: " .. fishName .. (variantName and " (" .. variantName .. ")" or ""), 3, Color3.fromRGB(0, 255, 0))
         end)
     end
 end)
@@ -1295,7 +1313,6 @@ eventSection:AddToggle({
     Default = false,
     Callback = function(state)
         AutoOpenMaze = state
-        notif("Auto Open Maze " .. (state and "enabled" or "disabled"), 2, state and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0))
 
         if state then
             AutoOpenMazeTask = task.spawn(function()
@@ -1308,12 +1325,14 @@ eventSection:AddToggle({
                     task.wait(2)
                 end
             end)
+            notif("Auto Mysterious Cave: Enabled", 3, Color3.fromRGB(0, 255, 0))
         else
             AutoOpenMaze = false
             if AutoOpenMazeTask then
                 task.cancel(AutoOpenMazeTask)
                 AutoOpenMazeTask = nil
             end
+            notif("Auto Mysterious Cave: Disabled", 3, Color3.fromRGB(255, 0, 0))
         end
     end
 })
@@ -1325,7 +1344,7 @@ eventSection:AddToggle({
     Default = false,
     Callback = function(v)
         AutoClaimPirateChest = v
-        notif("Auto Claim Pirate Chest " .. (v and "enabled" or "disabled"), 2, v and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0))
+        notif("Auto Claim Pirate Chest: " .. (v and "Enabled" or "Disabled"), 3, v and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0))
     end
 })
 
@@ -1336,7 +1355,6 @@ task.spawn(function()
         if AutoClaimPirateChest then
             pcall(function()
                 net["RE/ClaimPirateChest"]:FireServer(chestId)
-                notif("Auto-claimed pirate chest!", 2, Color3.fromRGB(255, 215, 0))
             end)
         end
     end)
@@ -1363,7 +1381,7 @@ totemSection:AddDropdown({
         elseif v == "Shiny Totem" then
             SelectedTotemId = 3
         end
-        notif("Totem selected: " .. v, 2, Color3.fromRGB(0, 170, 255))
+        notif("Selected: " .. v, 3, Color3.fromRGB(0, 170, 255))
     end
 })
 
@@ -1375,7 +1393,9 @@ totemSection:AddInput({
         local num = tonumber(v)
         if num and num > 0 then
             TotemDelayMinutes = math.floor(num)
-            notif("Totem delay set to " .. num .. " minutes", 2, Color3.fromRGB(0, 170, 255))
+            notif("Totem Delay: " .. num .. " minutes", 3, Color3.fromRGB(0, 255, 0))
+        else
+            notif("Invalid delay!", 3, Color3.fromRGB(255, 0, 0))
         end
     end
 })
@@ -1386,8 +1406,10 @@ totemSection:AddToggle({
     Default = false,
     Callback = function(enabled)
         AutoTotemEnabled = enabled
-        notif("Auto Place Totem " .. (enabled and "enabled" or "disabled"), 2, enabled and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0))
-        if not enabled then return end
+        if not enabled then 
+            notif("Auto Place Totem: Disabled", 3, Color3.fromRGB(255, 0, 0))
+            return 
+        end
 
         task.spawn(function()
             while AutoTotemEnabled do
@@ -1408,6 +1430,8 @@ totemSection:AddToggle({
                 task.wait(TotemDelayMinutes * 60)
             end
         end)
+        
+        notif("Auto Place Totem: Enabled (" .. TotemDelayMinutes .. " minutes)", 3, Color3.fromRGB(0, 255, 0))
     end
 })
 
@@ -1421,23 +1445,17 @@ totemSection:AddButton({
         
         local inventory = DataReplion:Get("Inventory")
         if not inventory or not inventory.Totems then 
-            notif("No totems in inventory", 2, Color3.fromRGB(255, 0, 0))
+            notif("No totems found!", 3, Color3.fromRGB(255, 0, 0))
             return 
         end
 
         local spawnTotem = Net:RemoteEvent("SpawnTotem")
-        local placed = false
         for _, totem in pairs(inventory.Totems) do
             if totem.Id == SelectedTotemId then
                 spawnTotem:FireServer(totem.UUID)
-                placed = true
-                notif("Totem placed!", 2, Color3.fromRGB(0, 255, 0))
+                notif("Totem Placed", 3, Color3.fromRGB(0, 255, 0))
                 break
             end
-        end
-        
-        if not placed then
-            notif("Selected totem not found", 2, Color3.fromRGB(255, 0, 0))
         end
     end
 })
@@ -1466,7 +1484,7 @@ webhookSection:AddDropdown({
     Multi = true,
     Callback = function(v)
         WebhookRarities = v
-        notif("Webhook rarity filter updated: " .. #v .. " selected", 2, Color3.fromRGB(0, 170, 255))
+        notif("Selected " .. #v .. " rarities", 3, Color3.fromRGB(0, 170, 255))
     end
 })
 
@@ -1477,7 +1495,7 @@ webhookSection:AddInput({
     Callback = function(text)
         WebhookURL = text
         if text ~= "" then
-            notif("Webhook URL saved", 2, Color3.fromRGB(0, 170, 255))
+            notif("Webhook URL set", 3, Color3.fromRGB(0, 255, 0))
         end
     end
 })
@@ -1488,7 +1506,7 @@ webhookSection:AddToggle({
     Default = false,
     Callback = function(state)
         DetectNewFishActive = state
-        notif("Fish Webhook " .. (state and "enabled" or "disabled"), 2, state and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0))
+        notif("Fish Webhook: " .. (state and "Enabled" or "Disabled"), 3, state and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0))
     end
 })
 
@@ -1519,9 +1537,10 @@ webhookSection:AddButton({
                     Headers = { ["Content-Type"] = "application/json" },
                     Body = game:GetService("HttpService"):JSONEncode(payload)
                 })
-                notif("Test webhook sent!", 3, Color3.fromRGB(0, 255, 0))
             end)
         end)
+        
+        notif("Test Webhook Sent", 3, Color3.fromRGB(0, 255, 0))
     end
 })
 
@@ -1558,7 +1577,7 @@ rodSection:AddDropdown({
     Default = selectedRod,
     Callback = function(v)
         selectedRod = v
-        notif("Rod selected: " .. v, 2, Color3.fromRGB(0, 170, 255))
+        notif("Selected: " .. v, 3, Color3.fromRGB(0, 170, 255))
     end
 })
 
@@ -1569,10 +1588,10 @@ rodSection:AddButton({
         if name and R[name] then
             pcall(function() 
                 net["RF/PurchaseFishingRod"]:InvokeServer(R[name]) 
-                notif("Purchased: " .. name, 2, Color3.fromRGB(0, 255, 0))
+                notif("Purchased: " .. name, 3, Color3.fromRGB(0, 255, 0))
             end)
         else
-            notif("Failed to purchase rod", 2, Color3.fromRGB(255, 0, 0))
+            notif("Invalid rod selection!", 3, Color3.fromRGB(255, 0, 0))
         end
     end
 })
@@ -1599,7 +1618,7 @@ baitSection:AddDropdown({
     Default = selectedBait,
     Callback = function(v)
         selectedBait = v
-        notif("Bait selected: " .. v, 2, Color3.fromRGB(0, 170, 255))
+        notif("Selected: " .. v, 3, Color3.fromRGB(0, 170, 255))
     end
 })
 
@@ -1609,10 +1628,10 @@ baitSection:AddButton({
         if selectedBait and B[selectedBait] then
             pcall(function() 
                 net["RF/PurchaseBait"]:InvokeServer(B[selectedBait]) 
-                notif("Purchased: " .. selectedBait, 2, Color3.fromRGB(0, 255, 0))
+                notif("Purchased: " .. selectedBait, 3, Color3.fromRGB(0, 255, 0))
             end)
         else
-            notif("Failed to purchase bait", 2, Color3.fromRGB(255, 0, 0))
+            notif("Invalid bait selection!", 3, Color3.fromRGB(255, 0, 0))
         end
     end
 })
@@ -1627,7 +1646,7 @@ merchantSection:AddButton({
         local merchantUI = playerGui:WaitForChild("Merchant")
         if merchantUI then
             merchantUI.Enabled = true
-            notif("Merchant opened", 2, Color3.fromRGB(0, 255, 0))
+            notif("Merchant Opened", 3, Color3.fromRGB(0, 255, 0))
         end
     end
 })
@@ -1639,7 +1658,7 @@ merchantSection:AddButton({
         local merchantUI = playerGui:FindFirstChild("Merchant")
         if merchantUI then
             merchantUI.Enabled = false
-            notif("Merchant closed", 2, Color3.fromRGB(255, 0, 0))
+            notif("Merchant Closed", 3, Color3.fromRGB(255, 0, 0))
         end
     end
 })
@@ -1654,7 +1673,6 @@ weatherSection:AddToggle({
     Default = false,
     Callback = function(state)
         autoBuyEnabled = state
-        notif("Auto Buy Weather " .. (state and "enabled" or "disabled"), 2, state and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0))
         if state then
             task.spawn(function()
                 while autoBuyEnabled do
@@ -1667,6 +1685,9 @@ weatherSection:AddToggle({
                     task.wait(1)
                 end
             end)
+            notif("Auto Buy Weather: Enabled", 3, Color3.fromRGB(0, 255, 0))
+        else
+            notif("Auto Buy Weather: Disabled", 3, Color3.fromRGB(255, 0, 0))
         end
     end
 })
@@ -1716,7 +1737,7 @@ islandSection:AddDropdown({
     Default = SelectedIsland,
     Callback = function(Value)
         SelectedIsland = Value
-        notif("Island selected: " .. Value, 2, Color3.fromRGB(0, 170, 255))
+        notif("Selected: " .. Value, 3, Color3.fromRGB(0, 170, 255))
     end
 })
 
@@ -1727,9 +1748,9 @@ islandSection:AddButton({
             local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
             if hrp then
                 hrp.CFrame = IslandLocations[SelectedIsland]
-                notif("Teleported to " .. SelectedIsland, 2, Color3.fromRGB(0, 255, 0))
+                notif("Teleported to " .. SelectedIsland, 3, Color3.fromRGB(0, 255, 0))
             else
-                notif("Character not found", 2, Color3.fromRGB(255, 0, 0))
+                notif("Character not found!", 3, Color3.fromRGB(255, 0, 0))
             end
         end
     end
@@ -1760,7 +1781,7 @@ playerTeleportSection:AddDropdown({
     Default = selectedPlayer,
     Callback = function(v)
         selectedPlayer = v
-        notif("Player selected: " .. v, 2, Color3.fromRGB(0, 170, 255))
+        notif("Selected: " .. v, 3, Color3.fromRGB(0, 170, 255))
     end
 })
 
@@ -1770,7 +1791,7 @@ playerTeleportSection:AddButton({
     Callback = function()
         playerList = getPlayerList()
         selectedPlayer = playerList[1] or ""
-        notif("Player list refreshed", 2, Color3.fromRGB(0, 170, 255))
+        notif("Player list refreshed", 3, Color3.fromRGB(0, 170, 255))
     end
 })
 
@@ -1779,13 +1800,13 @@ playerTeleportSection:AddButton({
     Title = "Teleport to Player",
     Callback = function()
         if not selectedPlayer then 
-            notif("No player selected", 2, Color3.fromRGB(255, 0, 0))
+            notif("No player selected!", 3, Color3.fromRGB(255, 0, 0))
             return 
         end
 
         local target = Players:FindFirstChild(selectedPlayer)
         if not target or not target.Character then 
-            notif("Player not found", 2, Color3.fromRGB(255, 0, 0))
+            notif("Player not found!", 3, Color3.fromRGB(255, 0, 0))
             return 
         end
 
@@ -1793,12 +1814,12 @@ playerTeleportSection:AddButton({
         local myHRP = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
 
         if not targetHRP or not myHRP then 
-            notif("Character parts not found", 2, Color3.fromRGB(255, 0, 0))
+            notif("Character not found!", 3, Color3.fromRGB(255, 0, 0))
             return 
         end
 
         myHRP.CFrame = CFrame.new(targetHRP.Position + Vector3.new(0, 3, 0))
-        notif("Teleported to " .. selectedPlayer, 2, Color3.fromRGB(0, 255, 0))
+        notif("Teleported to " .. selectedPlayer, 3, Color3.fromRGB(0, 255, 0))
     end
 })
 
@@ -2034,7 +2055,7 @@ eventTeleportSection:AddDropdown({
     Multi = true,
     Callback = function(selected)
         EventTP.selectedEvents = selected
-        notif("Selected " .. #selected .. " events", 2, Color3.fromRGB(0, 170, 255))
+        notif("Selected " .. #selected .. " events", 3, Color3.fromRGB(0, 170, 255))
     end
 })
 
@@ -2047,10 +2068,11 @@ eventTeleportSection:AddToggle({
         EventTP.floatActive = enabled
         EventTP.lastCacheTime = 0
         
-        notif("Auto Event Teleport " .. (enabled and "enabled" or "disabled"), 2, enabled and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0))
-        
         if enabled then
             task.spawn(runTeleportLoop)
+            notif("Auto Event Teleport: Enabled", 3, Color3.fromRGB(0, 255, 0))
+        else
+            notif("Auto Event Teleport: Disabled", 3, Color3.fromRGB(255, 0, 0))
         end
     end
 })
@@ -2070,13 +2092,13 @@ local Tab8 = Window:AddTab({
 -- MISC SECTION
 local miscSection = Tab8:AddSection("Miscellaneous")
 
--- PING DISPLAY WITH REAL-TIME NOTIFICATION COUNTER
+-- PING DISPLAY
 local PingEnabled = false
-local Frame, HeaderText, IconLabel, PingLabel, CpuLabel, FishCountLabel
+local Frame, HeaderText, StatsText, CloseButton, IconLabel, PingLabel, CpuLabel
 local lastPingUpdate = 0
 local pingUpdateInterval = 0.5
 
--- Color thresholds for ping
+-- Color thresholds
 local function getPingColor(ping)
     if ping <= 50 then
         return Color3.fromRGB(46, 204, 113) -- Green
@@ -2087,7 +2109,6 @@ local function getPingColor(ping)
     end
 end
 
--- Color thresholds for CPU
 local function getCpuColor(cpu)
     if cpu <= 30 then
         return Color3.fromRGB(46, 204, 113) -- Green
@@ -2097,147 +2118,6 @@ local function getCpuColor(cpu)
         return Color3.fromRGB(231, 76, 60) -- Red
     end
 end
-
--- Color thresholds for fish notification count
-local function getFishCountColor(count)
-    if count <= 5 then
-        return Color3.fromRGB(46, 204, 113) -- Green
-    elseif count <= 8 then
-        return Color3.fromRGB(241, 196, 15) -- Yellow
-    elseif count <= 10 then
-        return Color3.fromRGB(255, 87, 34) -- Orange
-    else
-        return Color3.fromRGB(231, 76, 60) -- Red (11+)
-    end
-end
-
--- Store active notification IDs
-local activeNotifications = {}
-local notificationCounter = 0
-
--- Function to check fish notifications from event
-local function setupFishNotificationTracker()
-    local ReplicatedStorage = game:GetService("ReplicatedStorage")
-    local Net = ReplicatedStorage:WaitForChild("Packages")
-        :WaitForChild("_Index")
-        :WaitForChild("sleitnick_net@0.2.0")
-        :WaitForChild("net")
-    
-    local fishNotificationEvent = Net:WaitForChild("RE/ObtainedNewFishNotification")
-    
-    fishNotificationEvent.OnClientEvent:Connect(function(itemId, _, data)
-        -- Generate unique ID for this notification
-        local notifId = tick() .. "_" .. itemId
-        notificationCounter = notificationCounter + 1
-        activeNotifications[notifId] = {
-            time = tick(),
-            itemId = itemId,
-            data = data
-        }
-        
-        -- Update display
-        updateFishCounterDisplay()
-        
-        -- Auto-remove notification after 5 seconds (typical notification duration)
-        task.delay(5, function()
-            if activeNotifications[notifId] then
-                activeNotifications[notifId] = nil
-                notificationCounter = math.max(0, notificationCounter - 1)
-                updateFishCounterDisplay()
-            end
-        end)
-    end)
-end
-
--- Function to update fish counter display
-local function updateFishCounterDisplay()
-    if FishCountLabel and Frame.Visible then
-        FishCountLabel.Text = "Fish Notif: " .. notificationCounter
-        FishCountLabel.TextColor3 = getFishCountColor(notificationCounter)
-    end
-end
-
--- Also track UI notifications as backup
-local function setupUINotificationTracker()
-    local PlayerGui = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
-    
-    -- Common notification GUI patterns in Fish It
-    local notificationNames = {
-        "Small Notification",
-        "Notification",
-        "FishNotification",
-        "CaughtNotification",
-        "NewFishPopup"
-    }
-    
-    -- Track visible notification frames
-    local visibleFrames = {}
-    
-    local function checkVisibleNotifications()
-        local count = 0
-        
-        -- Check for common notification GUIs
-        for _, guiName in pairs(notificationNames) do
-            local gui = PlayerGui:FindFirstChild(guiName)
-            if gui and gui.Enabled then
-                -- Count visible frames in this GUI
-                for _, descendant in pairs(gui:GetDescendants()) do
-                    if descendant:IsA("Frame") and descendant.Visible then
-                        -- Check if it looks like a notification frame
-                        local textLabels = descendant:GetDescendants()
-                        local hasText = false
-                        for _, child in pairs(textLabels) do
-                            if child:IsA("TextLabel") or child:IsA("TextButton") then
-                                local text = child.Text:lower()
-                                if text:find("fish") or text:find("caught") or text:find("new") then
-                                    hasText = true
-                                    break
-                                end
-                            end
-                        end
-                        
-                        if hasText then
-                            count = count + 1
-                        end
-                    end
-                end
-            end
-        end
-        
-        -- If we found UI notifications, use that count
-        if count > 0 and count > notificationCounter then
-            notificationCounter = count
-            updateFishCounterDisplay()
-        end
-        
-        return count
-    end
-    
-    -- Monitor GUI changes
-    PlayerGui.ChildAdded:Connect(function(child)
-        task.wait(0.5) -- Wait for GUI to fully load
-        checkVisibleNotifications()
-    end)
-    
-    PlayerGui.ChildRemoved:Connect(function(child)
-        task.wait(0.5)
-        checkVisibleNotifications()
-    end)
-    
-    -- Periodic check
-    task.spawn(function()
-        while true do
-            task.wait(1)
-            if PingEnabled and Frame.Visible then
-                checkVisibleNotifications()
-            end
-        end
-    end)
-end
-
--- Setup both trackers
-task.spawn(setupFishNotificationTracker)
-task.spawn(setupUINotificationTracker)
 
 local function makeDraggable(frame, dragArea)
     local UserInputService = game:GetService("UserInputService")
@@ -2291,9 +2171,8 @@ local function createPingDisplay()
     Gui.ResetOnSpawn = false
     Gui.ZIndexBehavior = Enum.ZIndexBehavior.Global
 
-    -- Increased height from 90 to 120 to accommodate fish counter
     Frame = Instance.new("Frame", Gui)
-    Frame.Size = UDim2.fromOffset(280, 120)
+    Frame.Size = UDim2.fromOffset(280, 90)
     Frame.Position = UDim2.fromScale(0.5, 0.05)
     Frame.AnchorPoint = Vector2.new(0.5, 0)
     Frame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
@@ -2340,10 +2219,10 @@ local function createPingDisplay()
     HeaderText.TextXAlignment = Enum.TextXAlignment.Left
     HeaderText.TextYAlignment = Enum.TextYAlignment.Center
     HeaderText.TextColor3 = Color3.fromRGB(255, 255, 255)
-    HeaderText.Text = "VICTORIA HUB"
+    HeaderText.Text = "VICTORIA X PANEL"
     HeaderText.ZIndex = 1002
 
-    -- Drag Area
+    -- Drag Area (invisible overlay for dragging - created AFTER close button)
     local DragArea = Instance.new("TextButton", Frame)
     DragArea.Size = UDim2.new(1, 0, 0, 45)
     DragArea.Position = UDim2.fromOffset(0, 0)
@@ -2352,71 +2231,49 @@ local function createPingDisplay()
     DragArea.ZIndex = 1005
     DragArea.AutoButtonColor = false
 
-    -- First Divider Line (under header)
-    local Divider1 = Instance.new("Frame", Frame)
-    Divider1.Size = UDim2.new(1, -24, 0, 1)
-    Divider1.Position = UDim2.fromOffset(12, 45)
-    Divider1.BackgroundColor3 = Color3.fromRGB(80, 80, 100)
-    Divider1.BackgroundTransparency = 0.5
-    Divider1.BorderSizePixel = 0
-    Divider1.ZIndex = 1002
+    -- Divider Line
+    local Divider = Instance.new("Frame", Frame)
+    Divider.Size = UDim2.new(1, -24, 0, 1)
+    Divider.Position = UDim2.fromOffset(12, 45)
+    Divider.BackgroundColor3 = Color3.fromRGB(80, 80, 100)
+    Divider.BackgroundTransparency = 0.5
+    Divider.BorderSizePixel = 0
+    Divider.ZIndex = 1002
 
-    -- Ping Label (top row)
+    -- Ping Label
     PingLabel = Instance.new("TextLabel", Frame)
-    PingLabel.Size = UDim2.new(0.5, -18, 0, 25)
+    PingLabel.Size = UDim2.new(0.5, -18, 0, 30)
     PingLabel.Position = UDim2.fromOffset(12, 52)
     PingLabel.BackgroundTransparency = 1
     PingLabel.Font = Enum.Font.GothamBold
     PingLabel.TextSize = 12
     PingLabel.TextXAlignment = Enum.TextXAlignment.Center
     PingLabel.TextYAlignment = Enum.TextYAlignment.Center
-    PingLabel.TextColor3 = getPingColor(0)
+    PingLabel.TextColor3 = Color3.fromRGB(46, 204, 113)
     PingLabel.Text = "PING: 0 ms"
     PingLabel.ZIndex = 1002
 
-    -- CPU Label (top row)
+    -- CPU Label
     CpuLabel = Instance.new("TextLabel", Frame)
-    CpuLabel.Size = UDim2.new(0.5, -18, 0, 25)
+    CpuLabel.Size = UDim2.new(0.5, -18, 0, 30)
     CpuLabel.Position = UDim2.new(0.5, 6, 0, 52)
     CpuLabel.BackgroundTransparency = 1
     CpuLabel.Font = Enum.Font.GothamBold
     CpuLabel.TextSize = 12
     CpuLabel.TextXAlignment = Enum.TextXAlignment.Center
     CpuLabel.TextYAlignment = Enum.TextYAlignment.Center
-    CpuLabel.TextColor3 = getCpuColor(0)
+    CpuLabel.TextColor3 = Color3.fromRGB(46, 204, 113)
     CpuLabel.Text = "CPU: 0.00%"
     CpuLabel.ZIndex = 1002
 
-    -- Vertical Divider between ping and cpu
+    -- Vertical Divider between stats
     local VertDivider = Instance.new("Frame", Frame)
-    VertDivider.Size = UDim2.new(0, 1, 0, 25)
+    VertDivider.Size = UDim2.new(0, 1, 0, 30)
     VertDivider.Position = UDim2.new(0.5, 0, 0, 52)
     VertDivider.BackgroundColor3 = Color3.fromRGB(80, 80, 100)
     VertDivider.BackgroundTransparency = 0.5
     VertDivider.BorderSizePixel = 0
     VertDivider.ZIndex = 1002
-
-    -- Second Divider Line (before fish counter)
-    local Divider2 = Instance.new("Frame", Frame)
-    Divider2.Size = UDim2.new(1, -24, 0, 1)
-    Divider2.Position = UDim2.fromOffset(12, 82)
-    Divider2.BackgroundColor3 = Color3.fromRGB(80, 80, 100)
-    Divider2.BackgroundTransparency = 0.5
-    Divider2.BorderSizePixel = 0
-    Divider2.ZIndex = 1002
-
-    -- Fish Notification Counter (bottom row, centered)
-    FishCountLabel = Instance.new("TextLabel", Frame)
-    FishCountLabel.Size = UDim2.new(1, -24, 0, 30)
-    FishCountLabel.Position = UDim2.fromOffset(12, 88)
-    FishCountLabel.BackgroundTransparency = 1
-    FishCountLabel.Font = Enum.Font.GothamBold
-    FishCountLabel.TextSize = 12
-    FishCountLabel.TextXAlignment = Enum.TextXAlignment.Center
-    FishCountLabel.TextYAlignment = Enum.TextYAlignment.Center
-    FishCountLabel.TextColor3 = getFishCountColor(0)
-    FishCountLabel.Text = "Fish Notif: 0"
-    FishCountLabel.ZIndex = 1002
 
     makeDraggable(Frame, DragArea)
     
@@ -2448,32 +2305,12 @@ if createPingDisplay() then
 end
 
 miscSection:AddToggle({
-    Title = "Ping & Fish Counter Display",
+    Title = "Ping Display",
     Default = false,
     Callback = function(v)
         PingEnabled = v
-        if Frame then 
-            Frame.Visible = v 
-            -- Reset counter when display is turned on
-            if v then
-                notificationCounter = 0
-                activeNotifications = {}
-                updateFishCounterDisplay()
-                notif("Fish counter reset", 2, Color3.fromRGB(0, 170, 255))
-            end
-        end
-        notif("Display " .. (v and "enabled" or "disabled"), 2, v and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0))
-    end
-})
-
--- Add button to manually reset fish counter
-miscSection:AddButton({
-    Title = "Reset Fish Counter",
-    Callback = function()
-        notificationCounter = 0
-        activeNotifications = {}
-        updateFishCounterDisplay()
-        notif("Fish counter reset manually", 2, Color3.fromRGB(0, 170, 255))
+        if Frame then Frame.Visible = v end
+        notif("Ping Display: " .. (v and "Enabled" or "Disabled"), 3, v and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0))
     end
 })
 
@@ -2492,7 +2329,7 @@ miscSection:AddInput({
     Callback = function(v)
         D.ch = v
         if D.on then H.Text = v end
-        notif("Custom name set", 2, Color3.fromRGB(0, 170, 255))
+        notif("Custom Name: " .. v, 3, Color3.fromRGB(0, 255, 0))
     end
 })
 
@@ -2502,7 +2339,7 @@ miscSection:AddInput({
     Callback = function(v)
         D.cl = v
         if D.on then L.Text = v end
-        notif("Custom level set", 2, Color3.fromRGB(0, 170, 255))
+        notif("Custom Level: " .. v, 3, Color3.fromRGB(0, 255, 0))
     end
 })
 
@@ -2514,11 +2351,11 @@ miscSection:AddToggle({
         if v then
             H.Text = D.ch
             L.Text = D.cl
-            notif("Custom name/level enabled", 2, Color3.fromRGB(0, 255, 0))
+            notif("Custom Hide: Enabled", 3, Color3.fromRGB(0, 255, 0))
         else
             H.Text = D.h
             L.Text = D.l
-            notif("Custom name/level disabled", 2, Color3.fromRGB(255, 0, 0))
+            notif("Custom Hide: Disabled", 3, Color3.fromRGB(255, 0, 0))
         end
     end
 })
@@ -2554,11 +2391,11 @@ miscSection:AddToggle({
         if v then
             S.ui.h.Text = HN
             S.ui.l.Text = HL
-            notif("Default name/level enabled", 2, Color3.fromRGB(0, 255, 0))
+            notif("Default Hide: Enabled", 3, Color3.fromRGB(0, 255, 0))
         else
             S.ui.h.Text = S.ui.dh
             S.ui.l.Text = S.ui.dl
-            notif("Default name/level disabled", 2, Color3.fromRGB(255, 0, 0))
+            notif("Default Hide: Disabled", 3, Color3.fromRGB(255, 0, 0))
         end
     end
 })
@@ -2575,11 +2412,11 @@ miscSection:AddToggle({
         if s then
             LocalPlayer.CameraMaxZoomDistance = math.huge
             LocalPlayer.CameraMinZoomDistance = .5
-            notif("Infinite Zoom enabled", 2, Color3.fromRGB(0, 255, 0))
+            notif("Infinite Zoom: Enabled", 3, Color3.fromRGB(0, 255, 0))
         else
             LocalPlayer.CameraMaxZoomDistance = originalZoom[1] or 128
             LocalPlayer.CameraMinZoomDistance = originalZoom[2] or .5
-            notif("Infinite Zoom disabled", 2, Color3.fromRGB(255, 0, 0))
+            notif("Infinite Zoom: Disabled", 3, Color3.fromRGB(255, 0, 0))
         end
     end
 })
@@ -2603,10 +2440,7 @@ game:GetService("CoreGui"):WaitForChild("RobloxPromptGui")
 
         task.wait(0.3)
         local btn = v:FindFirstChild("ReconnectButton", true)
-        if btn then 
-            click(btn)
-            notif("Auto-reconnecting...", 3, Color3.fromRGB(255, 215, 0))
-        end
+        if btn then click(btn) end
     end)
 
 miscSection:AddToggle({
@@ -2614,7 +2448,7 @@ miscSection:AddToggle({
     Default = true,
     Callback = function(v) 
         AutoReconnect = v
-        notif("Auto Reconnect " .. (v and "enabled" or "disabled"), 2, v and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0))
+        notif("Auto Reconnect: " .. (v and "Enabled" or "Disabled"), 3, v and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0))
     end
 })
 
@@ -2631,7 +2465,7 @@ miscSection:AddToggle({
     Default = false,
     Callback = function(s) 
         AntiStaffEnabled = s
-        notif("Anti Staff " .. (s and "enabled" or "disabled"), 2, s and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0))
+        notif("Anti Staff: " .. (s and "Enabled" or "Disabled"), 3, s and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0))
     end
 })
 
@@ -2647,7 +2481,6 @@ local function hop()
         for _,v in ipairs(data) do
             if v.playing < v.maxPlayers and v.id ~= game.JobId then
                 game:GetService("TeleportService"):TeleportToPlaceInstance(game.PlaceId, v.id, LocalPlayer)
-                notif("Server hopping...", 3, Color3.fromRGB(255, 165, 0))
                 break
             end
         end
@@ -2851,12 +2684,13 @@ graphicsSection:AddToggle({
     Default = false,
     Callback = function(v)
         FPSBoost = v
-        notif("FPS Boost " .. (v and "enabled" or "disabled"), 2, v and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0))
         
         if v then
             applyBoost()
+            notif("FPS Boost: Enabled", 3, Color3.fromRGB(0, 255, 0))
         else
             restoreBoost()
+            notif("FPS Boost: Disabled", 3, Color3.fromRGB(255, 0, 0))
         end
     end
 })
@@ -2895,11 +2729,11 @@ graphicsSection:AddToggle({
                 local f = getPopup()
                 if f then f.Visible = false; f:Destroy() end
             end)
-            notif("Fish notifications disabled", 2, Color3.fromRGB(0, 255, 0))
+            notif("Fish Popup Removal: Enabled", 3, Color3.fromRGB(0, 255, 0))
         else
             if PopupConn then PopupConn:Disconnect(); PopupConn = nil end
             if RemoteConn then RemoteConn:Disconnect(); RemoteConn = nil end
-            notif("Fish notifications enabled", 2, Color3.fromRGB(255, 0, 0))
+            notif("Fish Popup Removal: Disabled", 3, Color3.fromRGB(255, 0, 0))
         end
     end
 })
@@ -2913,7 +2747,6 @@ graphicsSection:AddToggle({
     Default = false,
     Callback = function(s)
         disable3DRendering = s
-        notif("3D Rendering " .. (s and "disabled" or "enabled"), 2, s and Color3.fromRGB(255, 0, 0) or Color3.fromRGB(0, 255, 0))
         pcall(function() 
             game:GetService("RunService"):Set3dRenderingEnabled(not s) 
         end)
@@ -2927,9 +2760,11 @@ graphicsSection:AddToggle({
             frame.Size = UDim2.fromScale(1,1)
             frame.BackgroundColor3 = Color3.new(1,1,1)
             frame.BorderSizePixel = 0
+            notif("3D Rendering: Disabled", 3, Color3.fromRGB(0, 255, 0))
         elseif G then
             G:Destroy()
             G = nil
+            notif("3D Rendering: Enabled", 3, Color3.fromRGB(255, 0, 0))
         end
     end
 })
@@ -2988,11 +2823,12 @@ graphicsSection:AddToggle({
     Default = false,
     Callback = function(state)
         VFXState.on = state
-        notif("VFX " .. (state and "hidden" or "visible"), 2, state and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0))
         if state then 
             disableVFX()
+            notif("VFX Hidden: Enabled", 3, Color3.fromRGB(0, 255, 0))
         else 
             restoreVFX()
+            notif("VFX Hidden: Disabled", 3, Color3.fromRGB(255, 0, 0))
         end
     end
 })
@@ -3016,12 +2852,12 @@ graphicsSection:AddToggle({
 
             local f = workspace:FindFirstChild("CosmeticFolder")
             if f then pcall(f.ClearAllChildren, f) end
-            notif("Skin effects removed", 2, Color3.fromRGB(0, 255, 0))
+            notif("Skin Effects: Removed", 3, Color3.fromRGB(0, 255, 0))
         else
             VFXController.Handle = ORI.H
             VFXController.RenderAtPoint = ORI.P
             VFXController.RenderInstance = ORI.I
-            notif("Skin effects restored", 2, Color3.fromRGB(255, 0, 0))
+            notif("Skin Effects: Restored", 3, Color3.fromRGB(255, 0, 0))
         end
     end
 })
@@ -3054,13 +2890,15 @@ graphicsSection:AddToggle({
     Default = false,
     Callback = function(state)
         _G.AutoSkipCutscene = state
-        notif("Cutscene " .. (state and "disabled" or "enabled"), 2, state and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0))
         if state then
             if _G.CutsceneController then
                 _G.CutsceneController:Stop()
                 _G.GuiControl:SetHUDVisibility(true)
                 _G.ProximityPromptService.Enabled = true
             end
+            notif("Cutscene: Disabled", 3, Color3.fromRGB(0, 255, 0))
+        else
+            notif("Cutscene: Enabled", 3, Color3.fromRGB(255, 0, 0))
         end
     end
 })
@@ -3072,7 +2910,7 @@ serverSection:AddButton({
     Title = "Rejoin",
     Callback = function()
         game:GetService("TeleportService"):Teleport(game.PlaceId, LocalPlayer)
-        notif("Rejoining server...", 3, Color3.fromRGB(255, 215, 0))
+        notif("Rejoining server...", 3, Color3.fromRGB(0, 170, 255))
     end
 })
 
@@ -3080,7 +2918,7 @@ serverSection:AddButton({
     Title = "Server Hop",
     Callback = function()
         game:GetService("TeleportService"):Teleport(game.PlaceId, LocalPlayer)
-        notif("Server hopping...", 3, Color3.fromRGB(255, 165, 0))
+        notif("Server hopping...", 3, Color3.fromRGB(0, 170, 255))
     end
 })
 
@@ -3091,7 +2929,7 @@ scriptSection:AddButton({
     Title = "Infinite Yield",
     Callback = function()
         loadstring(game:HttpGet('https://raw.githubusercontent.com/DarkNetworks/Infinite-Yield/main/latest.lua'))()
-        notif("Loading Infinite Yield...", 3, Color3.fromRGB(0, 170, 255))
+        notif("Infinite Yield loaded", 3, Color3.fromRGB(0, 255, 0))
     end
 })
 
