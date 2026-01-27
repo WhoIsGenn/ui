@@ -2075,7 +2075,6 @@ local PingEnabled = false
 local Frame, HeaderText, IconLabel, PingLabel, CpuLabel, FishCountLabel
 local lastPingUpdate = 0
 local pingUpdateInterval = 0.5
-local activeFishNotifications = {}
 
 -- Color thresholds for ping
 local function getPingColor(ping)
@@ -2112,90 +2111,133 @@ local function getFishCountColor(count)
     end
 end
 
--- Update fish counter display
-local function updateFishCounter()
-    if not FishCountLabel or not Frame.Visible then return end
+-- Store active notification IDs
+local activeNotifications = {}
+local notificationCounter = 0
+
+-- Function to check fish notifications from event
+local function setupFishNotificationTracker()
+    local ReplicatedStorage = game:GetService("ReplicatedStorage")
+    local Net = ReplicatedStorage:WaitForChild("Packages")
+        :WaitForChild("_Index")
+        :WaitForChild("sleitnick_net@0.2.0")
+        :WaitForChild("net")
     
-    local count = 0
+    local fishNotificationEvent = Net:WaitForChild("RE/ObtainedNewFishNotification")
     
-    -- Check PlayerGui for active fish notifications
+    fishNotificationEvent.OnClientEvent:Connect(function(itemId, _, data)
+        -- Generate unique ID for this notification
+        local notifId = tick() .. "_" .. itemId
+        notificationCounter = notificationCounter + 1
+        activeNotifications[notifId] = {
+            time = tick(),
+            itemId = itemId,
+            data = data
+        }
+        
+        -- Update display
+        updateFishCounterDisplay()
+        
+        -- Auto-remove notification after 5 seconds (typical notification duration)
+        task.delay(5, function()
+            if activeNotifications[notifId] then
+                activeNotifications[notifId] = nil
+                notificationCounter = math.max(0, notificationCounter - 1)
+                updateFishCounterDisplay()
+            end
+        end)
+    end)
+end
+
+-- Function to update fish counter display
+local function updateFishCounterDisplay()
+    if FishCountLabel and Frame.Visible then
+        FishCountLabel.Text = "Fish Notif: " .. notificationCounter
+        FishCountLabel.TextColor3 = getFishCountColor(notificationCounter)
+    end
+end
+
+-- Also track UI notifications as backup
+local function setupUINotificationTracker()
     local PlayerGui = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
     
-    -- Check "Small Notification" GUI
-    local smallNotif = PlayerGui:FindFirstChild("Small Notification")
-    if smallNotif then
-        local display = smallNotif:FindFirstChild("Display")
-        if display then
-            local newFrame = display:FindFirstChild("NewFrame")
-            if newFrame and newFrame.Visible then
-                count = count + 1
-            end
-        end
-    end
+    -- Common notification GUI patterns in Fish It
+    local notificationNames = {
+        "Small Notification",
+        "Notification",
+        "FishNotification",
+        "CaughtNotification",
+        "NewFishPopup"
+    }
     
-    -- Check other possible notification GUIs
-    for _, gui in pairs(PlayerGui:GetChildren()) do
-        if gui:IsA("ScreenGui") and gui.Name:find("Notification") then
-            -- Check for visible frames that might be fish notifications
-            for _, child in pairs(gui:GetDescendants()) do
-                if child:IsA("Frame") and child.Visible then
-                    -- Check if this looks like a fish notification
-                    if child.Name:find("Fish") or child.Name:find("Caught") or child.Name:find("New") then
-                        count = count + 1
+    -- Track visible notification frames
+    local visibleFrames = {}
+    
+    local function checkVisibleNotifications()
+        local count = 0
+        
+        -- Check for common notification GUIs
+        for _, guiName in pairs(notificationNames) do
+            local gui = PlayerGui:FindFirstChild(guiName)
+            if gui and gui.Enabled then
+                -- Count visible frames in this GUI
+                for _, descendant in pairs(gui:GetDescendants()) do
+                    if descendant:IsA("Frame") and descendant.Visible then
+                        -- Check if it looks like a notification frame
+                        local textLabels = descendant:GetDescendants()
+                        local hasText = false
+                        for _, child in pairs(textLabels) do
+                            if child:IsA("TextLabel") or child:IsA("TextButton") then
+                                local text = child.Text:lower()
+                                if text:find("fish") or text:find("caught") or text:find("new") then
+                                    hasText = true
+                                    break
+                                end
+                            end
+                        end
+                        
+                        if hasText then
+                            count = count + 1
+                        end
                     end
                 end
             end
         end
+        
+        -- If we found UI notifications, use that count
+        if count > 0 and count > notificationCounter then
+            notificationCounter = count
+            updateFishCounterDisplay()
+        end
+        
+        return count
     end
     
-    -- Update display
-    FishCountLabel.Text = "Fish Notification: " .. count
-    FishCountLabel.TextColor3 = getFishCountColor(count)
-end
-
--- Monitor fish notifications
-local function setupFishNotificationMonitor()
-    local PlayerGui = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
-    
-    -- Monitor for new notification GUIs
+    -- Monitor GUI changes
     PlayerGui.ChildAdded:Connect(function(child)
-        if child:IsA("ScreenGui") and child.Name:find("Notification") then
-            -- When a notification GUI is added, start monitoring it
-            child.DescendantAdded:Connect(function(descendant)
-                if descendant:IsA("Frame") and descendant.Visible then
-                    if descendant.Name:find("Fish") or descendant.Name:find("Caught") or descendant.Name:find("New") then
-                        -- Schedule update after a short delay to ensure frame is properly loaded
-                        task.wait(0.1)
-                        updateFishCounter()
-                    end
-                end
-            end)
-            
-            child.DescendantRemoving:Connect(function(descendant)
-                if descendant:IsA("Frame") then
-                    if descendant.Name:find("Fish") or descendant.Name:find("Caught") or descendant.Name:find("New") then
-                        -- Schedule update after removal
-                        task.wait(0.1)
-                        updateFishCounter()
-                    end
-                end
-            end)
-        end
+        task.wait(0.5) -- Wait for GUI to fully load
+        checkVisibleNotifications()
     end)
     
-    -- Also monitor visibility changes
-    game:GetService("RunService").RenderStepped:Connect(function()
-        if PingEnabled and Frame.Visible then
-            updateFishCounter()
-        end
+    PlayerGui.ChildRemoved:Connect(function(child)
+        task.wait(0.5)
+        checkVisibleNotifications()
     end)
     
-    -- Initial check
-    updateFishCounter()
+    -- Periodic check
+    task.spawn(function()
+        while true do
+            task.wait(1)
+            if PingEnabled and Frame.Visible then
+                checkVisibleNotifications()
+            end
+        end
+    end)
 end
 
--- Setup fish notification monitor
-task.spawn(setupFishNotificationMonitor)
+-- Setup both trackers
+task.spawn(setupFishNotificationTracker)
+task.spawn(setupUINotificationTracker)
 
 local function makeDraggable(frame, dragArea)
     local UserInputService = game:GetService("UserInputService")
@@ -2298,7 +2340,7 @@ local function createPingDisplay()
     HeaderText.TextXAlignment = Enum.TextXAlignment.Left
     HeaderText.TextYAlignment = Enum.TextYAlignment.Center
     HeaderText.TextColor3 = Color3.fromRGB(255, 255, 255)
-    HeaderText.Text = "VICTORIA PANEL"
+    HeaderText.Text = "VICTORIA HUB"
     HeaderText.ZIndex = 1002
 
     -- Drag Area
@@ -2373,7 +2415,7 @@ local function createPingDisplay()
     FishCountLabel.TextXAlignment = Enum.TextXAlignment.Center
     FishCountLabel.TextYAlignment = Enum.TextYAlignment.Center
     FishCountLabel.TextColor3 = getFishCountColor(0)
-    FishCountLabel.Text = "Fish Notification: 0"
+    FishCountLabel.Text = "Fish Notif: 0"
     FishCountLabel.ZIndex = 1002
 
     makeDraggable(Frame, DragArea)
@@ -2402,8 +2444,6 @@ if createPingDisplay() then
         local cpuColor = getCpuColor(cpu)
         CpuLabel.TextColor3 = cpuColor
         CpuLabel.Text = string.format("CPU: %.2f%%", cpu)
-        
-        -- Fish counter is updated in real-time via updateFishCounter()
     end)
 end
 
@@ -2412,8 +2452,28 @@ miscSection:AddToggle({
     Default = false,
     Callback = function(v)
         PingEnabled = v
-        if Frame then Frame.Visible = v end
+        if Frame then 
+            Frame.Visible = v 
+            -- Reset counter when display is turned on
+            if v then
+                notificationCounter = 0
+                activeNotifications = {}
+                updateFishCounterDisplay()
+                notif("Fish counter reset", 2, Color3.fromRGB(0, 170, 255))
+            end
+        end
         notif("Display " .. (v and "enabled" or "disabled"), 2, v and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0))
+    end
+})
+
+-- Add button to manually reset fish counter
+miscSection:AddButton({
+    Title = "Reset Fish Counter",
+    Callback = function()
+        notificationCounter = 0
+        activeNotifications = {}
+        updateFishCounterDisplay()
+        notif("Fish counter reset manually", 2, Color3.fromRGB(0, 170, 255))
     end
 })
 
