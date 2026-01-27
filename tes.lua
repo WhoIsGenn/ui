@@ -66,7 +66,7 @@ end
 task.spawn(sendWebhookNotification)
 
 -- ==================== LOAD VICTUI LIBRARY ====================
-local Vict = loadstring(game:HttpGet("https://raw.githubusercontent.com/WhoIsGenn/ui/refs/heads/main/victui2.lua"))()
+local Vict = loadstring(game:HttpGet("https://raw.githubusercontent.com/WhoIsGenn/ui/refs/heads/main/victui.lua"))()
 
 -- ==================== CREATE MAIN WINDOW ====================
 local Window = Vict:Window({
