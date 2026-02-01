@@ -2823,6 +2823,6 @@ function vict:Window(GuiConfig)
     return Tabs
 end
 
-LoadConfigFromFile()
+-- LoadConfigFromFile()
 
 return vict
