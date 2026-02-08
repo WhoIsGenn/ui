@@ -66,7 +66,7 @@ end
 task.spawn(sendWebhookNotification)
 
 -- ==================== LOAD VICTUI LIBRARY ====================
-local Vict = loadstring(game:HttpGet("https://raw.githubusercontent.com/WhoIsGenn/ui/refs/heads/main/tesvictui.lua"))()
+local Vict = loadstring(game:HttpGet("https://raw.githubusercontent.com/WhoIsGenn/ui/refs/heads/main/victuites.lua"))()
 
 -- ==================== CREATE MAIN WINDOW ====================
 local Window = Vict:Window({
@@ -101,7 +101,7 @@ task.spawn(function()
     while _G.AntiAFK do
         task.wait(30)
         pcall(function()
-            VirtualUser:CaptureController()
+            VirtualUser:CaptureControllCaptureControllCCaptureController()
             VirtualUser:MoveMouseBy(1, 0)
             task.wait(0.1)
             VirtualUser:MoveMouseBy(-1, 0)
