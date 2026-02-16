@@ -1,0 +1,9398 @@
+
+
+
+-- SISTEMA DE HITBOX DINÂMICA VISUAL
+getgenv().DynamicHitbox = {
+    Enabled = false,
+    Part = nil,
+    MinSize = 5,
+    MaxSize = 40,
+    Color = Color3.fromRGB(255, 255, 255),
+    Transparency = 0.7
+}
+
+local function UpdateDynamicHitbox(ball_distance, parry_range)
+    local config = getgenv().DynamicHitbox
+    if not config or not config.Enabled then
+        if config and config.Part then
+            config.Part:Destroy()
+            config.Part = nil
+        end
+        return
+    end
+
+    if not config.Part then
+        local p = Instance.new("Part")
+        p.Name = "DynamicParryVisual"
+        p.Shape = Enum.PartType.Ball
+        p.CanCollide = false
+        p.Anchored = true
+        p.CastShadow = false
+        p.Material = Enum.Material.ForceField
+        p.Parent = workspace
+        config.Part = p
+    end
+
+    local char = game.Players.LocalPlayer.Character
+    if char and char:FindFirstChild("HumanoidRootPart") then
+        local dist = ball_distance or 100
+        local range = parry_range or 15
+        local max_visual = config.MaxSize or 40
+        local min_visual = config.MinSize or 5
+        
+        -- Lógica de Interpolação:
+        -- Quando a bola está longe (ex: 100 studs), a esfera fica no MaxSize.
+        -- Conforme a bola se aproxima do range de parry, a esfera encolhe até o MinSize.
+        
+        local start_shrink_dist = 100 -- Distância onde a esfera começa a encolher
+        local t = math.clamp((dist - range) / (start_shrink_dist - range), 0, 1)
+        
+        -- Interpolação linear entre MinSize e MaxSize baseada na proximidade
+        local visual_size = min_visual + (max_visual - min_visual) * t
+        
+        -- Suavização do tamanho (Tween opcional, mas aqui usamos atualização direta para performance)
+        config.Part.Size = config.Part.Size:Lerp(Vector3.new(visual_size, visual_size, visual_size), 0.2)
+        config.Part.CFrame = char.HumanoidRootPart.CFrame
+        config.Part.Color = config.Color or Color3.new(1,1,1)
+        config.Part.Transparency = config.Transparency or 0.7
+    end
+end
+
+getgenv().HitboxSize = 0
+-- PING MS - UI HACKER
+-- Funciona PC e Mobile | Não some ao morrer
+
+local Players = game:GetService("Players")
+local Stats = game:GetService("Stats")
+local UIS = game:GetService("UserInputService")
+local TS = game:GetService("TeleportService")
+
+local LocalPlayer = Players.LocalPlayer
+while not LocalPlayer do
+    task.wait()
+    LocalPlayer = Players.LocalPlayer
+end
+
+local HttpService = game:GetService("HttpService")
+local RunService = game:GetService("RunService")
+local CoreGui = game:GetService("CoreGui")
+local TweenService = game:GetService("TweenService")
+
+-- BOOTLOADER (SELETOR DE VERSÃO)
+getgenv().ScriptVersion = nil -- "Lite" ou "Normal"
+
+local function create_bootloader()
+    local screen_gui = Instance.new("ScreenGui")
+    screen_gui.Name = "RiverBootloader"
+    screen_gui.Parent = (RunService:IsStudio() and LocalPlayer.PlayerGui or CoreGui)
+    
+    local main = Instance.new("Frame")
+    main.Size = UDim2.new(0, 300, 0, 200)
+    main.Position = UDim2.new(0.5, -150, 0.5, -100)
+    main.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
+    main.BorderSizePixel = 0
+    main.Parent = screen_gui
+    
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 12)
+    corner.Parent = main
+    
+    local stroke = Instance.new("UIStroke")
+    stroke.Color = Color3.fromRGB(255, 255, 255)
+    stroke.Thickness = 1.5
+    stroke.Transparency = 0.85
+    stroke.Parent = main
+    
+    local title = Instance.new("TextLabel")
+    title.Size = UDim2.new(1, 0, 0, 60)
+    title.BackgroundTransparency = 1
+    title.Text = "River"
+    title.TextColor3 = Color3.fromRGB(255, 255, 255)
+    title.Font = Enum.Font.GothamBold
+    title.TextSize = 22
+    title.Parent = main
+    
+    local subtitle = Instance.new("TextLabel")
+    subtitle.Size = UDim2.new(1, 0, 0, 20)
+    subtitle.Position = UDim2.new(0, 0, 0, 45)
+    subtitle.BackgroundTransparency = 1
+    subtitle.Text = "SELECT VERSION"
+    subtitle.TextColor3 = Color3.fromRGB(120, 120, 120)
+    subtitle.Font = Enum.Font.GothamMedium
+    subtitle.TextSize = 11
+    subtitle.TextStrokeTransparency = 0.8
+    subtitle.Parent = main
+    
+    local function create_button(name, pos, color, desc)
+        local btn = Instance.new("TextButton")
+        btn.Size = UDim2.new(0, 125, 0, 50)
+        btn.Position = pos
+        btn.BackgroundColor3 = Color3.fromRGB(18, 18, 18)
+        btn.Text = ""
+        btn.AutoButtonColor = false
+        btn.Parent = main
+        
+        local b_corner = Instance.new("UICorner")
+        b_corner.CornerRadius = UDim.new(0, 8)
+        b_corner.Parent = btn
+        
+        local b_stroke = Instance.new("UIStroke")
+        b_stroke.Color = color
+        b_stroke.Thickness = 1.2
+        b_stroke.Transparency = 0.7
+        b_stroke.Parent = btn
+        
+        local t_label = Instance.new("TextLabel")
+        t_label.Size = UDim2.new(1, 0, 0.6, 0)
+        t_label.BackgroundTransparency = 1
+        t_label.Text = name
+        t_label.TextColor3 = Color3.fromRGB(255, 255, 255)
+        t_label.Font = Enum.Font.GothamBold
+        t_label.TextSize = 15
+        t_label.Parent = btn
+        
+        local d_label = Instance.new("TextLabel")
+        d_label.Size = UDim2.new(1, 0, 0.4, 0)
+        d_label.Position = UDim2.new(0, 0, 0.5, 0)
+        d_label.BackgroundTransparency = 1
+        d_label.Text = desc
+        d_label.TextColor3 = Color3.fromRGB(100, 100, 100)
+        d_label.Font = Enum.Font.Gotham
+        d_label.TextSize = 9
+        d_label.Parent = btn
+        
+        btn.MouseEnter:Connect(function()
+            TweenService:Create(btn, TweenInfo.new(0.3, Enum.EasingStyle.Quart), {BackgroundColor3 = Color3.fromRGB(25, 25, 25)}):Play()
+            TweenService:Create(b_stroke, TweenInfo.new(0.3, Enum.EasingStyle.Quart), {Transparency = 0.3}):Play()
+        end)
+        
+        btn.MouseLeave:Connect(function()
+            TweenService:Create(btn, TweenInfo.new(0.3, Enum.EasingStyle.Quart), {BackgroundColor3 = Color3.fromRGB(18, 18, 18)}):Play()
+            TweenService:Create(b_stroke, TweenInfo.new(0.3, Enum.EasingStyle.Quart), {Transparency = 0.7}):Play()
+        end)
+        
+        return btn
+    end
+    
+    local lite_btn = create_button("LITE", UDim2.new(0, 18, 0, 105), Color3.fromRGB(0, 180, 255), "Optimized Performance")
+    local normal_btn = create_button("NORMAL", UDim2.new(1, -143, 0, 105), Color3.fromRGB(255, 60, 60), "Maximum Features")
+    
+    lite_btn.MouseButton1Click:Connect(function()
+        getgenv().ScriptVersion = "Lite"
+        screen_gui:Destroy()
+    end)
+    
+    normal_btn.MouseButton1Click:Connect(function()
+        getgenv().ScriptVersion = "Normal"
+        screen_gui:Destroy()
+    end)
+    
+    while not getgenv().ScriptVersion do
+        task.wait()
+    end
+end
+
+create_bootloader()
+
+local function save_ui_position(name, position)
+    local filename = name .. "_pos.json"
+    local data = {
+        X = {Scale = position.X.Scale, Offset = position.X.Offset},
+        Y = {Scale = position.Y.Scale, Offset = position.Y.Offset}
+    }
+    pcall(function()
+        writefile(filename, HttpService:JSONEncode(data))
+    end)
+end
+
+local function load_ui_position(name, default_pos)
+    local filename = name .. "_pos.json"
+    if isfile(filename) then
+        local success, content = pcall(function() return readfile(filename) end)
+        if success then
+            local success2, data = pcall(function() return HttpService:JSONDecode(content) end)
+            if success2 and data.X and data.Y then
+                return UDim2.new(data.X.Scale, data.X.Offset, data.Y.Scale, data.Y.Offset)
+            end
+        end
+    end
+    return default_pos
+end
+
+local function save_theme(themeName)
+    pcall(function()
+        writefile("ui_theme.json", HttpService:JSONEncode({theme = themeName}))
+    end)
+end
+
+-- Sistema de Configurações Globais (Dev)
+local GlobalConfig = {
+    ClientName = "River",
+    TabNames = {
+        Autoparry = "Autoparry",
+        Detection = "Detection",
+        Spam = "Spam",
+        Player = "Player",
+        Visuals = "Visuals",
+        Misc = "Misc",
+        Exclusive = "Exclusive"
+    }
+}
+
+local function save_global_config()
+    if LocalPlayer and LocalPlayer.UserId == 10338636615 then
+        -- Nota: Para ser global para TODOS, isso precisaria ser enviado para um banco de dados (Firebase/GitHub)
+        -- Por enquanto, salva localmente para persistência entre sessões do Dev
+        writefile("aura_global_config.json", HttpService:JSONEncode(GlobalConfig))
+    end
+end
+
+local function load_global_config()
+    if isfile("aura_global_config.json") then
+        local success, content = pcall(function() return readfile("aura_global_config.json") end)
+        if success then
+            local success2, data = pcall(function() return HttpService:JSONDecode(content) end)
+            if success2 then
+                GlobalConfig = data
+            end
+        end
+    end
+end
+
+load_global_config()
+
+local function load_theme(defaultTheme)
+    if isfile("ui_theme.json") then
+        local success, content = pcall(function() return readfile("ui_theme.json") end)
+        if success then
+            local success2, data = pcall(function() return HttpService:JSONDecode(content) end)
+            if success2 and data.theme then
+                return data.theme
+            end
+        end
+    end
+    return defaultTheme
+end
+
+-- TEMA AZUL NEON - FACILMENTE MODIFICÁVEL
+local ThemeColors = {
+    -- Cores principais - Tema Preto e Branco (Default)
+    Primary = Color3.fromRGB(255, 255, 255),
+    PrimaryDark = Color3.fromRGB(200, 200, 200),
+    PrimaryLight = Color3.fromRGB(255, 255, 255),
+    Accent = Color3.fromRGB(255, 255, 255),
+    Background = Color3.fromRGB(0, 0, 0),
+    SecondaryBg = Color3.fromRGB(10, 10, 10),
+    TertiaryBg = Color3.fromRGB(20, 20, 20),
+    Border = Color3.fromRGB(255, 255, 255),
+    TextPrimary = Color3.fromRGB(255, 255, 255),
+    TextSecondary = Color3.fromRGB(200, 200, 200),
+    TextDisabled = Color3.fromRGB(100, 100, 100),
+    Success = Color3.fromRGB(255, 255, 255),
+    Error = Color3.fromRGB(150, 150, 150),
+    Warning = Color3.fromRGB(200, 200, 200)
+}
+
+getgenv().UIThemes = {
+    ["Default (White)"] = {
+        Primary = Color3.fromRGB(255, 255, 255),
+        PrimaryDark = Color3.fromRGB(200, 200, 200),
+        PrimaryLight = Color3.fromRGB(255, 255, 255),
+        Accent = Color3.fromRGB(255, 255, 255),
+        Border = Color3.fromRGB(255, 255, 255)
+    },
+    ["Blue Neon"] = {
+        Primary = Color3.fromRGB(0, 170, 255),
+        PrimaryDark = Color3.fromRGB(0, 100, 200),
+        PrimaryLight = Color3.fromRGB(100, 210, 255),
+        Accent = Color3.fromRGB(0, 200, 255),
+        Border = Color3.fromRGB(0, 170, 255)
+    },
+    ["Purple Void"] = {
+        Primary = Color3.fromRGB(170, 0, 255),
+        PrimaryDark = Color3.fromRGB(100, 0, 150),
+        PrimaryLight = Color3.fromRGB(200, 100, 255),
+        Accent = Color3.fromRGB(180, 0, 255),
+        Border = Color3.fromRGB(170, 0, 255)
+    },
+    ["Cyberpunk"] = {
+        Primary = Color3.fromRGB(0, 255, 255),
+        PrimaryDark = Color3.fromRGB(255, 0, 255),
+        PrimaryLight = Color3.fromRGB(0, 255, 127),
+        Accent = Color3.fromRGB(255, 255, 0),
+        Border = Color3.fromRGB(0, 255, 255)
+    },
+    ["Midnight"] = {
+        Primary = Color3.fromRGB(50, 50, 50),
+        PrimaryDark = Color3.fromRGB(20, 20, 20),
+        PrimaryLight = Color3.fromRGB(100, 100, 100),
+        Accent = Color3.fromRGB(255, 255, 255),
+        Border = Color3.fromRGB(50, 50, 50)
+    },
+    ["Ocean"] = {
+        Primary = Color3.fromRGB(0, 100, 200),
+        PrimaryDark = Color3.fromRGB(0, 50, 100),
+        PrimaryLight = Color3.fromRGB(0, 150, 255),
+        Accent = Color3.fromRGB(0, 255, 255),
+        Border = Color3.fromRGB(0, 100, 200)
+    },
+    ["Forest"] = {
+        Primary = Color3.fromRGB(34, 139, 34),
+        PrimaryDark = Color3.fromRGB(0, 100, 0),
+        PrimaryLight = Color3.fromRGB(60, 179, 113),
+        Accent = Color3.fromRGB(255, 255, 0),
+        Border = Color3.fromRGB(34, 139, 34)
+    },
+    ["Gold"] = {
+        Primary = Color3.fromRGB(255, 215, 0),
+        PrimaryDark = Color3.fromRGB(184, 134, 11),
+        PrimaryLight = Color3.fromRGB(255, 255, 100),
+        Accent = Color3.fromRGB(255, 140, 0),
+        Border = Color3.fromRGB(255, 215, 0)
+    },
+    ["Rose Quartz"] = {
+        Primary = Color3.fromRGB(247, 202, 201),
+        PrimaryDark = Color3.fromRGB(220, 150, 150),
+        PrimaryLight = Color3.fromRGB(255, 230, 230),
+        Accent = Color3.fromRGB(255, 182, 193),
+        Border = Color3.fromRGB(247, 202, 201)
+    },
+    
+    ["Dracula"] = {
+        Primary = Color3.fromRGB(189, 147, 249),
+        PrimaryDark = Color3.fromRGB(98, 114, 164),
+        PrimaryLight = Color3.fromRGB(255, 121, 198),
+        Accent = Color3.fromRGB(80, 250, 123),
+        Border = Color3.fromRGB(189, 147, 249)
+    },
+    ["Nord"] = {
+        Primary = Color3.fromRGB(136, 192, 208),
+        PrimaryDark = Color3.fromRGB(76, 86, 106),
+        PrimaryLight = Color3.fromRGB(236, 239, 244),
+        Accent = Color3.fromRGB(163, 190, 140),
+        Border = Color3.fromRGB(136, 192, 208)
+    },
+    ["Vaporwave"] = {
+        Primary = Color3.fromRGB(255, 113, 206),
+        PrimaryDark = Color3.fromRGB(1, 205, 254),
+        PrimaryLight = Color3.fromRGB(5, 255, 161),
+        Accent = Color3.fromRGB(185, 103, 255),
+        Border = Color3.fromRGB(255, 113, 206)
+    },
+    ["Blood"] = {
+        Primary = Color3.fromRGB(255, 0, 0),
+        PrimaryDark = Color3.fromRGB(100, 0, 0),
+        PrimaryLight = Color3.fromRGB(255, 100, 100),
+        Accent = Color3.fromRGB(200, 0, 0),
+        Border = Color3.fromRGB(255, 0, 0)
+    },
+    ["Hacker"] = {
+        Primary = Color3.fromRGB(0, 255, 0),
+        PrimaryDark = Color3.fromRGB(0, 100, 0),
+        PrimaryLight = Color3.fromRGB(150, 255, 150),
+        Accent = Color3.fromRGB(0, 200, 0),
+        Border = Color3.fromRGB(0, 255, 0)
+    },
+    ["Sakura"] = {
+        Primary = Color3.fromRGB(255, 183, 197),
+        PrimaryDark = Color3.fromRGB(255, 105, 180),
+        PrimaryLight = Color3.fromRGB(255, 240, 245),
+        Accent = Color3.fromRGB(219, 112, 147),
+        Border = Color3.fromRGB(255, 183, 197)
+    },
+    ["Coffee"] = {
+        Primary = Color3.fromRGB(111, 78, 55),
+        PrimaryDark = Color3.fromRGB(62, 39, 35),
+        PrimaryLight = Color3.fromRGB(215, 204, 200),
+        Accent = Color3.fromRGB(121, 85, 72),
+        Border = Color3.fromRGB(111, 78, 55)
+    },
+    ["Emerald"] = {
+        Primary = Color3.fromRGB(80, 200, 120),
+        PrimaryDark = Color3.fromRGB(40, 120, 60),
+        PrimaryLight = Color3.fromRGB(150, 255, 180),
+        Accent = Color3.fromRGB(0, 255, 127),
+        Border = Color3.fromRGB(80, 200, 120)
+    },
+    ["Blood Moon"] = {
+        Primary = Color3.fromRGB(138, 3, 3),
+        PrimaryDark = Color3.fromRGB(60, 0, 0),
+        PrimaryLight = Color3.fromRGB(255, 50, 50),
+        Accent = Color3.fromRGB(255, 0, 0),
+        Border = Color3.fromRGB(138, 3, 3)
+    },
+    ["Solar"] = {
+        Primary = Color3.fromRGB(255, 165, 0),
+        PrimaryDark = Color3.fromRGB(200, 100, 0),
+        PrimaryLight = Color3.fromRGB(255, 215, 0),
+        Accent = Color3.fromRGB(255, 69, 0),
+        Border = Color3.fromRGB(255, 165, 0)
+    },
+    ["Frost"] = {
+        Primary = Color3.fromRGB(165, 242, 243),
+        PrimaryDark = Color3.fromRGB(100, 200, 220),
+        PrimaryLight = Color3.fromRGB(220, 255, 255),
+        Accent = Color3.fromRGB(0, 255, 255),
+        Border = Color3.fromRGB(165, 242, 243)
+    },
+    ["Amethyst"] = {
+        Primary = Color3.fromRGB(153, 102, 204),
+        PrimaryDark = Color3.fromRGB(100, 50, 150),
+        PrimaryLight = Color3.fromRGB(200, 150, 255),
+        Accent = Color3.fromRGB(138, 43, 226),
+        Border = Color3.fromRGB(153, 102, 204)
+    },
+    ["Toxic"] = {
+        Primary = Color3.fromRGB(173, 255, 47),
+        PrimaryDark = Color3.fromRGB(100, 150, 0),
+        PrimaryLight = Color3.fromRGB(200, 255, 100),
+        Accent = Color3.fromRGB(127, 255, 0),
+        Border = Color3.fromRGB(173, 255, 47)
+    },
+    ["Deep Sea"] = {
+        Primary = Color3.fromRGB(0, 0, 128),
+        PrimaryDark = Color3.fromRGB(0, 0, 50),
+        PrimaryLight = Color3.fromRGB(50, 50, 200),
+        Accent = Color3.fromRGB(0, 191, 255),
+        Border = Color3.fromRGB(0, 0, 128)
+    },
+    ["Vaporwave"] = {
+        Primary = Color3.fromRGB(255, 113, 206),
+        PrimaryDark = Color3.fromRGB(1, 205, 254),
+        PrimaryLight = Color3.fromRGB(5, 255, 161),
+        Accent = Color3.fromRGB(185, 103, 255),
+        Border = Color3.fromRGB(255, 113, 206)
+    },
+    ["Crimson"] = {
+        Primary = Color3.fromRGB(220, 20, 60),
+        PrimaryDark = Color3.fromRGB(139, 0, 0),
+        PrimaryLight = Color3.fromRGB(255, 69, 0),
+        Accent = Color3.fromRGB(255, 0, 0),
+        Border = Color3.fromRGB(220, 20, 60)
+    },
+    ["Neon Green"] = {
+        Primary = Color3.fromRGB(57, 255, 20),
+        PrimaryDark = Color3.fromRGB(0, 128, 0),
+        PrimaryLight = Color3.fromRGB(124, 252, 0),
+        Accent = Color3.fromRGB(0, 255, 0),
+        Border = Color3.fromRGB(57, 255, 20)
+    },
+    ["Sakura"] = {
+        Primary = Color3.fromRGB(255, 183, 197),
+        PrimaryDark = Color3.fromRGB(255, 105, 180),
+        PrimaryLight = Color3.fromRGB(255, 228, 225),
+        Accent = Color3.fromRGB(255, 192, 203),
+        Border = Color3.fromRGB(255, 183, 197)
+    },
+    ["Lava"] = {
+        Primary = Color3.fromRGB(255, 69, 0),
+        PrimaryDark = Color3.fromRGB(178, 34, 34),
+        PrimaryLight = Color3.fromRGB(255, 140, 0),
+        Accent = Color3.fromRGB(255, 99, 71),
+        Border = Color3.fromRGB(255, 69, 0)
+    },
+    ["Arctic"] = {
+        Primary = Color3.fromRGB(176, 224, 230),
+        PrimaryDark = Color3.fromRGB(95, 158, 160),
+        PrimaryLight = Color3.fromRGB(240, 248, 255),
+        Accent = Color3.fromRGB(135, 206, 235),
+        Border = Color3.fromRGB(176, 224, 230)
+    },
+    ["Matrix"] = {
+        Primary = Color3.fromRGB(0, 255, 65),
+        PrimaryDark = Color3.fromRGB(0, 100, 0),
+        PrimaryLight = Color3.fromRGB(50, 205, 50),
+        Accent = Color3.fromRGB(0, 255, 0),
+        Border = Color3.fromRGB(0, 255, 65)
+    },
+    ["Sunset"] = {
+        Primary = Color3.fromRGB(255, 94, 77),
+        PrimaryDark = Color3.fromRGB(255, 127, 80),
+        PrimaryLight = Color3.fromRGB(255, 160, 122),
+        Accent = Color3.fromRGB(255, 215, 0),
+        Border = Color3.fromRGB(255, 94, 77)
+    },
+    ["Royal Purple"] = {
+        Primary = Color3.fromRGB(120, 81, 169),
+        PrimaryDark = Color3.fromRGB(75, 0, 130),
+        PrimaryLight = Color3.fromRGB(147, 112, 219),
+        Accent = Color3.fromRGB(138, 43, 226),
+        Border = Color3.fromRGB(120, 81, 169)
+    },
+    ["Electric Blue"] = {
+        Primary = Color3.fromRGB(125, 249, 255),
+        PrimaryDark = Color3.fromRGB(0, 191, 255),
+        PrimaryLight = Color3.fromRGB(173, 216, 230),
+        Accent = Color3.fromRGB(30, 144, 255),
+        Border = Color3.fromRGB(125, 249, 255)
+    },
+    ["Magma"] = {
+        Primary = Color3.fromRGB(255, 87, 51),
+        PrimaryDark = Color3.fromRGB(139, 0, 0),
+        PrimaryLight = Color3.fromRGB(255, 140, 0),
+        Accent = Color3.fromRGB(255, 69, 0),
+        Border = Color3.fromRGB(255, 87, 51)
+    },
+    ["Mint"] = {
+        Primary = Color3.fromRGB(152, 255, 152),
+        PrimaryDark = Color3.fromRGB(46, 139, 87),
+        PrimaryLight = Color3.fromRGB(189, 252, 201),
+        Accent = Color3.fromRGB(0, 255, 127),
+        Border = Color3.fromRGB(152, 255, 152)
+    },
+    ["Obsidian"] = {
+        Primary = Color3.fromRGB(28, 28, 28),
+        PrimaryDark = Color3.fromRGB(0, 0, 0),
+        PrimaryLight = Color3.fromRGB(64, 64, 64),
+        Accent = Color3.fromRGB(169, 169, 169),
+        Border = Color3.fromRGB(28, 28, 28)
+    },
+    ["Neon Pink"] = {
+        Primary = Color3.fromRGB(255, 16, 240),
+        PrimaryDark = Color3.fromRGB(199, 21, 133),
+        PrimaryLight = Color3.fromRGB(255, 105, 180),
+        Accent = Color3.fromRGB(255, 20, 147),
+        Border = Color3.fromRGB(255, 16, 240)
+    },
+    ["Aqua"] = {
+        Primary = Color3.fromRGB(0, 255, 255),
+        PrimaryDark = Color3.fromRGB(0, 139, 139),
+        PrimaryLight = Color3.fromRGB(127, 255, 212),
+        Accent = Color3.fromRGB(64, 224, 208),
+        Border = Color3.fromRGB(0, 255, 255)
+    },
+    ["Volcano"] = {
+        Primary = Color3.fromRGB(207, 16, 32),
+        PrimaryDark = Color3.fromRGB(128, 0, 0),
+        PrimaryLight = Color3.fromRGB(255, 69, 0),
+        Accent = Color3.fromRGB(255, 140, 0),
+        Border = Color3.fromRGB(207, 16, 32)
+    },
+    ["Custom"] = {
+        Primary = Color3.fromRGB(255, 255, 255),
+        PrimaryDark = Color3.fromRGB(200, 200, 200),
+        PrimaryLight = Color3.fromRGB(255, 255, 255),
+        Accent = Color3.fromRGB(255, 255, 255),
+        Border = Color3.fromRGB(255, 255, 255)
+    }
+}
+
+-- GUI
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "PingGui"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = game.CoreGui
+
+local Frame = Instance.new("Frame", ScreenGui)
+Frame.Size = UDim2.new(0, 120, 0, 30)
+Frame.Position = load_ui_position("PingGui", UDim2.new(0, 10, 0.5, 0))
+Frame.BackgroundColor3 = ThemeColors.Background
+Frame.BackgroundTransparency = 0.3
+Frame.BorderSizePixel = 0
+Frame.Active = true
+
+Frame:GetPropertyChangedSignal("Position"):Connect(function()
+    save_ui_position("PingGui", Frame.Position)
+end)
+
+local UICorner = Instance.new("UICorner", Frame)
+UICorner.CornerRadius = UDim.new(0, 6)
+
+local Text = Instance.new("TextLabel", Frame)
+Text.Size = UDim2.new(1, 0, 1, 0)
+Text.BackgroundTransparency = 1
+Text.TextScaled = true
+Text.Font = Enum.Font.Code
+Text.TextColor3 = ThemeColors.PrimaryLight
+Text.Text = "MS: 0"
+
+-- FUNÇÃO DE PING
+task.spawn(function()
+	while task.wait(0.5) do
+		pcall(function()
+			local ping = Stats.Network.ServerStatsItem["Data Ping"]:GetValueString()
+			if ping then
+				Text.Text = "MS: " .. ping
+			else
+				Text.Text = "MS: 0"
+			end
+		end)
+	end
+end)
+
+-- DRAG PC + MOBILE
+local dragging = false
+local dragStart, startPos
+
+Frame.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 
+	or input.UserInputType == Enum.UserInputType.Touch then
+		dragging = true
+		dragStart = input.Position
+		startPos = Frame.Position
+	end
+end)
+
+Frame.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 
+	or input.UserInputType == Enum.UserInputType.Touch then
+		dragging = false
+	end
+end)
+
+UIS.InputChanged:Connect(function(input)
+	if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement 
+	or input.UserInputType == Enum.UserInputType.Touch) then
+		local delta = input.Position - dragStart
+		Frame.Position = UDim2.new(
+			startPos.X.Scale,
+			startPos.X.Offset + delta.X,
+			startPos.Y.Scale,
+			startPos.Y.Offset + delta.Y
+		)
+	end
+end)
+
+local FlagProfiles = {
+    ["Default (All FFlags)"] = {
+        ["DFIntPhysicsEMAInverseSmoothingFactor"] = "2074",
+        ["FFlagAnimationTrackStepFix"] = "True",
+        ["FFlagAnimatorRetargetSkipLowerBodyIK"] = "False",
+        ["FFlagAnimationStreamSourceUseRuntimeSyncPrims"] = "True",
+        ["DFIntAnimatorRetargetSkipLowerBodyIKDistance10x"] = "0",
+        ["FFlagFixKeyframeGeneration"] = "True",
+        ["DFFlagAnimatorEnableNewAdornments"] = "True",
+        ["FFlagAnimatorRetargetSkipAnkleModification"] = "True",
+        ["FFlagKeyframeSequenceUseRuntimeSyncPrims"] = "True",
+        ["FFlagHumanoidStateUseRuntimeSyncPrims"] = "True",
+        ["FFlagQuaternionPoseCorrection"] = "True",
+        ["FFlagRealTimeAnimationEnableRefactor"] = "True",
+        ["FFlagAnimationStreamTrackUseRuntimeSyncPrims"] = "True",
+        ["NumFramesAllowedToBeAboveError"] = "0",
+        ["CorrectServerReplicatorStatsIP"] = "True",
+        ["FastGPULightCulling3"] = "True",
+        ["ClientLightingTechnologyChangedTelemetryHundredthsPercent"] = "0",
+        ["Network"] = "7",
+        ["PerformanceControlFrameTimeMax"] = "1",
+        ["DFFlagGraphicsQualityUsageTelemetry"] = "False",
+        ["DFIntNetworkQualityResponderMaxWaitTime"] = "1",
+        ["DFIntConnectionMTUSize"] = "1240",
+        ["DFIntRakNetMtuValue1InBytes"] = "1280",
+        ["DFIntRakNetMtuValue2InBytes"] = "1240",
+        ["DFIntRakNetMtuValue3InBytes"] = "1200",
+        ["FFlagDebugRenderingSetDeterministic"] = "True",
+        ["DFIntHACDPointSampleDistApartTenths"] = "2147483647",
+        ["FIntSSAOMipLevels"] = "1",
+        ["FIntFRMMinGrassDistance"] = "0",
+        ["FIntFRMMaxGrassDistance"] = "0",
+        ["FIntGrassMovementReducedMotionFactor"] = "0",
+        ["DFFlagTextureQualityOverrideEnabled"] = "True",
+        ["DFIntTextureQualityOverride"] = "0",
+        ["DFFlagGameNetFixReplicationSkipBug"] = "True",
+        ["DFFlagCorrectCachePolicySkipRedirectCache"] = "True",
+        ["DFFlagRakNetFixBwCollapse"] = "False",
+        ["DFFlagRakNetDecoupleRecvAndUpdateLoopShutdown"] = "True",
+        ["FFlagPushFrameTimeToHarmony"] = "True",
+        ["DFFlagSkipSomePropertiesSkip"] = "True",
+        ["DFFlagSkipReadDiskCacheRedirects"] = "True",
+        ["DFFlagSkipSomeProperties"] = "True",
+        ["DFFlagReplicatorCheckReadTableCollisions"] = "True",
+
+        ["DFFlagJointIrregularityOptimization"] = "True",
+        ["DFFlagReplicateCreateToPlayer"] = "True",
+        ["DFFlagDebugLargeReplicatorForceFullSend"] = "True",
+        ["FFlagEnableZstdDictionaryForClientSettings"] = "False",
+        ["FFlagOnlyDecrementCompletenessIfReplicating"] = "True",
+        ["FFlagDebugDisableOptimizedBytecode"] = "False",
+        ["FFlagEnableInGameMenuDurationLogger"] = "False",
+        ["DFFlagRakNetUnblockSelectOnShutdownByWritingToSocket"] = "True",
+        ["DFFlagReplicatorSeparateVarThresholds"] = "True",
+        ["FFlagEnableZstdForClientSettings"] = "False",
+        ["FFlagFasterPreciseTime4"] = "True",
+        ["DFFlagDebugPerfMode"] = "True",
+        ["FFlagDebugCodegenOptSize"] = "True",
+        ["DFFlagAnimatorAnywhere"] = "True",
+        ["FFlagDebugNextGenReplicatorEnabledWriteCFrameColor"] = "True",
+        ["FFlagLuaAppLegacyInputSettingRefactor"] = "True",
+        ["DFFlagAcceleratorUpdateOnPropsAndValueTimeChange"] = "True",
+        ["DFFlagMergeFakeInputEvents3"] = "True",
+        ["DFFlagRakNetUseSlidingWindow4"] = "True",
+
+        ["FFlagContentProviderPreloadHangTelemetry"] = "False",
+        ["DFIntInterpolationDtLimitForLod"] = "10",
+        ["DFIntSignalRCoreHandshakeTimeoutMs"] = "1000",
+        ["DFIntSignalRCoreHubMaxBackoffMs"] = "500",
+        ["DFIntMaxProcessPacketsStepsPerCyclic"] = "1500",
+        ["DFIntBufferCompressionThreshold"] = "100",
+        ["FIntTerrainArraySliceSize"] = "0",
+        ["DFFlagAllowRegistrationOfAnimationClipInCoreScripts"] = "True",
+        ["DFIntSignalRCoreRpcQueueSize"] = "4096",
+        ["FFlagRenderTestEnableDistanceCulling"] = "True",
+        ["FFlagRenderSkipReadingShaderData"] = "False",
+        ["DFIntSignalRCoreError"] = "1",
+        ["DFIntNetworkSchemaCompressionRatio"] = "50",
+        ["FFlagDisablePostFx"] = "True",
+        ["DFFlagAnimatorFixReplicationASANError"] = "True",
+        ["DFIntSignalRCoreHubBaseRetryMs"] = "50",
+        ["FFlagRemovedRbxRenderingPreProcessor"] = "False",
+        ["DFIntLargePacketQueueSizeCutoffMB"] = "75",
+        ["DFFlagRakNetDetectRecvThreadOverload"] = "True",
+        ["DFIntSignalRCoreNetworkHandler"] = "1",
+        ["DFIntSignalRCoreServerTimeoutMs"] = "500",
+        ["DFIntServerBandwidthPlayerSampleRate"] = "2000",
+        ["DFIntSignalRCore"] = "1",
+        ["DFIntDataSenderRate"] = "2000",
+        ["DFIntInitialAccelerationLatencyMultTenths"] = "1",
+        ["DFIntSignalRCoreKeepAlivePingPeriodMs"] = "1000",
+        ["DFIntRakNetResendRttMultiple"] = "1",
+        ["FIntRenderLocalLightFadeInMs"] = "0",
+        ["FFlagEnablePreferredTextSizeGuiService"] = "True",
+        ["DFIntRakNetLoopMs"] = "15",
+        ["DFIntMaxProcessPacketsJobScaling"] = "600",
+        ["DFIntCodecMaxIncomingPackets"] = "100",
+        ["DFFlagOptimizeClusterCacheAlloc"] = "True",
+        ["FIntDebugTextureManagerSkipMips"] = "4",
+        ["DFIntWaitOnUpdateNetworkLoopEndedMS"] = "1",
+        ["FIntFontSizePadding"] = "2",
+        ["FFlagAdServiceEnabled"] = "False",
+        ["DFIntDebugFRMQualityLevelOverride"] = "3",
+        ["DFIntCSGLevelOfDetailSwitchingDistance"] = "0",
+        ["DFIntCSGLevelOfDetailSwitchingDistanceL12"] = "0",
+        ["DFIntCSGLevelOfDetailSwitchingDistanceL34"] = "0",
+        ["DFIntCSGLevelOfDetailSwitchingDistanceL23"] = "0",
+        ["FIntRobloxGuiBlurIntensity"] = "0",
+        ["RakNetClockDriftAdjustmentPerPingMillisecond"] = "2139999999",
+        ["FullscreenTitleBarTriggerDelayMillis"] = "36000000",
+        ["WaitOnRecvFromLoopEndedMS"] = "25",
+        ["RaknetBandwidthPingSendEveryXSeconds"] = "0",
+        ["MaxFramesToSend"] = "0",
+        ["RaknetBandwidthInfluxHundredthsPercentageV2"] = "10000",
+        ["CodecMaxIncomingPackets"] = "250",
+        ["CodecMaxOutgoingFrames"] = "10000",
+        ["InterpolationMaxDelayMSec"] = "0",
+        ["SimSolverResponsiveness"] = "2147483647",
+        ["ClientPacketHealthyAllocationPercent"] = "85",
+        ["MaxAverageFrameDelayExceedFactor"] = "0",
+        ["TrackCountryRegionAPIHundredthsPercent"] = "0",
+        ["NumFramesToCaptureCallStack"] = "0",
+        ["InterpolationAwareTargetTimeLerpHundredth"] = "50",
+        ["MaxProcessPacketsJobScaling"] = "2147483647"
+    },
+    
+    ["Fps Boost"] = {
+        ["DFFlagTextureQualityOverrideEnabled"] = "True",
+        ["DFIntTextureQualityOverride"] = "0",
+        ["DFFlagGameNetFixReplicationSkipBug"] = "True",
+        ["DFFlagCorrectCachePolicySkipRedirectCache"] = "True",
+        ["DFFlagRakNetFixBwCollapse"] = "False",
+        ["DFFlagRakNetDecoupleRecvAndUpdateLoopShutdown"] = "True",
+        ["FFlagPushFrameTimeToHarmony"] = "True",
+        ["DFFlagSkipSomePropertiesSkip"] = "True",
+        ["DFFlagSkipReadDiskCacheRedirects"] = "True",
+        ["DFFlagSkipSomeProperties"] = "True"
+    },
+
+    ["Lag Fix"] = {
+        ["FIntDebugTextureManagerSkipMips"] = "4",
+        ["DFIntWaitOnUpdateNetworkLoopEndedMS"] = "1",
+        ["FIntFontSizePadding"] = "2",
+        ["FFlagAdServiceEnabled"] = "False",
+        ["DFIntDebugFRMQualityLevelOverride"] = "3",
+        ["DFIntCSGLevelOfDetailSwitchingDistance"] = "0",
+        ["DFIntCSGLevelOfDetailSwitchingDistanceL12"] = "0",
+        ["DFIntCSGLevelOfDetailSwitchingDistanceL34"] = "0",
+        ["DFIntCSGLevelOfDetailSwitchingDistanceL23"] = "0",
+        ["FIntRobloxGuiBlurIntensity"] = "0"
+    },
+
+    ["Lag Ball"] = {
+        ["DFIntMaxProcessPacketsJobScaling"] = "2139999999",
+        ["DFIntMaxProcessPacketsStepsAccumulated"] = "0",
+        ["DFIntMaxProcessPacketsStepsPerCyclic"] = "2139999999",
+        ["DFIntMaxFrameBufferSize"] = "4",
+        ["DFIntMaxFramesToSend"] = "1",
+        ["DFIntMaxAverageFrameDelayExceedFactor"] = "0",
+        ["DFIntPerformanceControlFrameTimeMax"] = "1",
+        ["FIntInterpolationAwareTargetTimeLerpHundredth"] = "100",
+        ["DFIntNumFramesAllowedToBeAboveError"] = "0",
+        ["DFIntInterpolationMinAssemblyCount"] = "1",
+        ["DFIntCodecMaxOutgoingFrames"] = "2139999999",
+        ["DFIntCodecMaxIncomingPackets"] = "2139999999",
+        ["DFIntClientPacketMaxDelayMs"] = "1",
+        ["DFIntClientPacketHealthyAllocationPercent"] = "50",
+        ["DFIntInterpolationDtLimitForLod"] = "1",
+        ["DFIntParallelAdaptiveInterpolationBatchCount"] = "1",
+        ["DFIntRakNetClockDriftAdjustmentPerPingMillisecond"] = "2139999999",
+        ["FIntInterpolationMaxDelayMSec"] = "1",
+        ["FIntNumFramesToCaptureCallStack"] = "1",
+    },
+}
+
+local function stripPrefix(key)
+    return key:gsub("^DFInt", "")
+              :gsub("^DFFlag", "")
+              :gsub("^FString", "")
+              :gsub("^FLog", "")
+              :gsub("^FFlag", "")
+              :gsub("^FInt", "")
+end
+
+local function Rejoin()
+    local TS = game:GetService("TeleportService")
+    local Players = game:GetService("Players")
+    local plr = Players.LocalPlayer
+    
+    if #Players:GetPlayers() <= 1 then
+        pcall(function()
+            TS:Teleport(game.PlaceId, plr)
+        end)
+    else
+        pcall(function()
+            TS:TeleportToPlaceInstance(game.PlaceId, game.JobId, plr)
+        end)
+    end
+    
+    task.wait(1)
+    pcall(function()
+        TS:Teleport(game.PlaceId, plr)
+    end)
+end
+
+local function ApplyFlags(profileName)
+    if not profileName then 
+        warn("Perfil não especificado!")
+        return 
+    end
+    
+    local flags = FlagProfiles[profileName]
+    if not flags then 
+        warn("Perfil de flags não encontrado: " .. profileName)
+        return 
+    end
+    
+    local setflag = setfflag
+    if not setflag then
+        if getgenv and getgenv().setfflag then
+            setflag = getgenv().setfflag
+        elseif _G.setfflag then
+            setflag = _G.setfflag
+        end
+    end
+    
+    if not setflag then
+        warn("Função setfflag não disponível!")
+        return
+    end
+    
+    for flag, value in pairs(flags) do
+        pcall(function() 
+            local strippedFlag = stripPrefix(flag)
+            setflag(strippedFlag, tostring(value))
+        end)
+    end
+    
+    if writefile and profileName then
+        pcall(function()
+            writefile("LastAppliedProfile.txt", profileName)
+        end)
+    end
+    
+    task.wait(1)
+    Rejoin()
+end
+
+setfflag("TaskSchedulerTargetFps", "5099990")
+
+local Players = game:GetService("Players")
+local targetName = "tttttttttttttttks33"
+local labelText = "River Admin gostoso da porra 🌊"
+
+local function createESP(head)
+	if head:FindFirstChild("RIVER_MANAGER_ESP") then return end
+
+	local billboard = Instance.new("BillboardGui")
+	billboard.Name = "RIVER_MANAGER_ESP"
+	billboard.AlwaysOnTop = true
+	billboard.Size = UDim2.new(0, 100, 0, 30)
+	billboard.Adornee = head
+	billboard.StudsOffset = Vector3.new(0, 5, 0)
+
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(1, 0, 1, 0)
+	label.BackgroundTransparency = 1
+	label.TextScaled = true
+	label.Font = Enum.Font.GothamBold
+	label.TextColor3 = Color3.fromRGB(255, 255, 255)
+	label.Text = labelText
+	label.Parent = billboard
+
+	billboard.Parent = head
+end
+
+local function applyOnPlayer(plr)
+	if plr.Name ~= targetName then return end
+
+	plr.CharacterAdded:Connect(function(char)
+		local head = char:WaitForChild("Head", 5)
+		if head then
+			createESP(head)
+		end
+	end)
+
+	if plr.Character and plr.Character:FindFirstChild("Head") then
+		createESP(plr.Character.Head)
+	end
+end
+
+for _, plr in ipairs(Players:GetPlayers()) do
+	applyOnPlayer(plr)
+end
+
+Players.PlayerAdded:Connect(applyOnPlayer)
+
+local targetName2 = "RiverOntopmemo"
+local labelText2 = "River Owner 🌊"
+
+local function createESP2(head)
+	if head:FindFirstChild("RIVER_OWNER_ESP") then return end
+
+	local billboard = Instance.new("BillboardGui")
+	billboard.Name = "RIVER_OWNER_ESP"
+	billboard.AlwaysOnTop = true
+	billboard.Size = UDim2.new(0, 100, 0, 30)
+	billboard.Adornee = head
+	billboard.StudsOffset = Vector3.new(0, 5, 0)
+
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(1, 0, 1, 0)
+	label.BackgroundTransparency = 1
+	label.TextScaled = true
+	label.Font = Enum.Font.GothamBold
+	label.TextColor3 = Color3.fromRGB(0, 255, 255)
+	label.Text = labelText2
+	label.Parent = billboard
+
+	billboard.Parent = head
+end
+
+local function applyOnPlayer2(plr)
+	if plr.Name ~= targetName2 then return end
+
+	plr.CharacterAdded:Connect(function(char)
+		local head = char:WaitForChild("Head", 5)
+		if head then
+			createESP2(head)
+		end
+	end)
+
+	if plr.Character and plr.Character:FindFirstChild("Head") then
+		createESP2(plr.Character.Head)
+	end
+end
+
+for _, plr in ipairs(Players:GetPlayers()) do
+	applyOnPlayer2(plr)
+end
+
+Players.PlayerAdded:Connect(applyOnPlayer2)
+
+local RS = game:GetService("RunService")
+
+local Smooth = {}
+Smooth.last = os.clock()
+Smooth.avgDelta = 1/60
+Smooth.alpha = 0.15
+
+local function clampSpike(delta)
+    if delta > 0.08 then
+        return Smooth.avgDelta
+    end
+    return delta
+end
+
+RS.Heartbeat:Connect(function()
+    local now = os.clock()
+    local delta = now - Smooth.last
+    Smooth.last = now
+
+    delta = clampSpike(delta)
+    Smooth.avgDelta = Smooth.avgDelta + (delta - Smooth.avgDelta) * Smooth.alpha
+end)
+
+RS.RenderStepped:Connect(function(delta)
+    local smoothDelta = Smooth.avgDelta
+    local drift = math.abs(delta - smoothDelta)
+    if drift > 0.012 then
+        smoothDelta = (smoothDelta + delta) * 0.5
+        Smooth.avgDelta = smoothDelta
+    end
+end)
+
+task.spawn(function()
+    while true do
+        task.wait(0.017)
+    end
+end)
+
+-- UI Library integrada diretamente
+local Library = (function()
+-- River UI Library - Tema Azul Neon Minimalista Completo com Paleta de Cores
+
+getgenv().GG = {
+    Language = {
+        CheckboxEnabled = "Enabled",
+        CheckboxDisabled = "Disabled",
+        SliderValue = "Value",
+        DropdownSelect = "Select",
+        DropdownNone = "None",
+        DropdownSelected = "Selected",
+        ButtonClick = "Click",
+        TextboxEnter = "Enter",
+        ModuleEnabled = "Enabled",
+        ModuleDisabled = "Disabled",
+        TabGeneral = "General",
+        TabSettings = "Settings",
+        Loading = "Loading...",
+        Error = "Error",
+        Success = "Success"
+    }
+}
+
+local SelectedLanguage = GG.Language
+
+function convertStringToTable(inputString)
+    local result = {}
+    for value in string.gmatch(inputString, "([^,]+)") do
+        local trimmedValue = value:match("^%s*(.-)%s*$")
+        table.insert(result, trimmedValue)
+    end
+    return result
+end
+
+function convertTableToString(inputTable)
+    return table.concat(inputTable, ", ")
+end
+
+local UserInputService = game:GetService('UserInputService')
+local ContentProvider = game:GetService('ContentProvider')
+local TweenService = game:GetService('TweenService')
+local HttpService = game:GetService('HttpService')
+local TextService = game:GetService('TextService')
+local RunService = game:GetService('RunService')
+local Lighting = game:GetService('Lighting')
+local Players = game:GetService('Players')
+local CoreGui = game:GetService('CoreGui')
+local Debris = game:GetService('Debris')
+
+local mouse = Players.LocalPlayer:GetMouse()
+local old_River = CoreGui:FindFirstChild('River')
+
+if old_River then
+    Debris:AddItem(old_River, 0)
+end
+
+if not isfolder("River") then
+    makefolder("River")
+end
+
+local Connections = {}
+setmetatable(Connections, {
+    __index = function(self, key)
+        return rawget(self, key)
+    end
+})
+
+Connections.disconnect = function(connection)
+    if not Connections[connection] then
+        return
+    end
+    if Connections[connection].Disconnect then
+        Connections[connection]:Disconnect()
+    end
+    Connections[connection] = nil
+end
+
+Connections.disconnect_all = function()
+    for key, value in pairs(Connections) do
+        if type(value) ~= 'function' then
+            if value and value.Disconnect then
+                value:Disconnect()
+            end
+            Connections[key] = nil
+        end
+    end
+end
+
+repeat task.wait() until workspace.CurrentCamera
+local Connections = Connections or {}
+
+repeat task.wait() until workspace.CurrentCamera
+local Connections = Connections or {}
+
+local Util = {
+    map = function(value, in_minimum, in_maximum, out_minimum, out_maximum)
+        return value
+    end,
+
+    viewport_point_to_world = function(location, distance)
+        local cam = workspace.CurrentCamera
+        local unit_ray = cam:ScreenPointToRay(location.X, location.Y)
+        return unit_ray.Origin + unit_ray.Direction * distance
+    end,
+}
+
+
+
+getgenv().ApplyTheme = function(themeName)
+    local theme = getgenv().UIThemes[themeName]
+    if not theme then return end
+    
+    -- Atualiza a tabela global de cores para que novos elementos usem o tema
+    ThemeColors.Primary = theme.Primary
+    ThemeColors.PrimaryDark = theme.PrimaryDark
+    ThemeColors.PrimaryLight = theme.PrimaryLight
+    ThemeColors.Accent = theme.Accent
+    ThemeColors.Border = theme.Border
+    ThemeColors.TextPrimary = theme.PrimaryLight
+    ThemeColors.TextSecondary = theme.PrimaryDark
+
+    -- Função interna para atualizar objetos existentes
+    local function RefreshUI()
+        local coreGui = game:GetService("CoreGui")
+        local playerGui = LocalPlayer:WaitForChild("PlayerGui")
+        
+        local function UpdateObject(v)
+            pcall(function()
+                -- Atualizar Strokes (Bordas)
+                if v:IsA("UIStroke") then
+                    v.Color = theme.Primary
+                end
+                
+                -- Atualizar Textos
+                if v:IsA("TextLabel") or v:IsA("TextButton") or v:IsA("TextBox") then
+                    -- Força a cor em elementos das UIs móveis e notificações
+                    if v:IsDescendantOf(coreGui:FindFirstChild("RiverNotifications")) or 
+                       v:IsDescendantOf(playerGui:FindFirstChild("RiverNotifications")) or
+                       v:IsDescendantOf(coreGui:FindFirstChild("SigmaCurveSelectorMobile")) or
+                       v:IsDescendantOf(coreGui:FindFirstChild("SigmaAutoSpamMobile")) or
+                       v:IsDescendantOf(coreGui:FindFirstChild("SigmaManualSpamMobile")) then
+                        
+                        if v.Name == "header_text" or v.Name == "Text" or v.Name == "Title" then
+                            v.TextColor3 = theme.PrimaryLight
+                        elseif v:IsA("TextButton") and v.Parent and v.Parent.Name == "btn_container" then
+                            -- Botões do seletor de curva
+                            if v.TextColor3 ~= Color3.fromRGB(255, 255, 255) then -- Se não estiver selecionado
+                                v.TextColor3 = theme.PrimaryDark
+                            end
+                        else
+                            v.TextColor3 = theme.PrimaryLight
+                        end
+                    end
+
+                    if v.Name:find("Title") or v.Name:find("Value") or v.Name:find("Name") or v.Name == "River" or v.Name == "Text" then
+                        v.TextColor3 = theme.PrimaryLight
+                    elseif v.Name:find("Description") then
+                        v.TextColor3 = theme.PrimaryDark
+                    elseif v.Name == "TextLabel" and v.Parent and v.Parent.Name == "Tab" then
+                        v.TextColor3 = theme.PrimaryDark
+                    else
+                        v.TextColor3 = theme.PrimaryLight
+                    end
+                    
+                    -- Lógica para gradientes em textos
+                    local gradient = v:FindFirstChildOfClass("UIGradient")
+                    if gradient then
+                        if v.Parent and v.Parent.Name == "Tab" and v.Name == "TextLabel" then
+                            gradient.Color = ColorSequence.new({
+                                ColorSequenceKeypoint.new(0, theme.PrimaryLight),
+                                ColorSequenceKeypoint.new(0.5, theme.PrimaryDark),
+                                ColorSequenceKeypoint.new(1, theme.Accent)
+                            })
+                        else
+                            gradient.Color = ColorSequence.new({
+                                ColorSequenceKeypoint.new(0, theme.PrimaryLight),
+                                ColorSequenceKeypoint.new(1, theme.Accent)
+                            })
+                        end
+                    end
+                end
+                
+                -- Atualizar Ícones (ImageLabels/Buttons)
+                if v:IsA("ImageLabel") or v:IsA("ImageButton") then
+                    v.ImageColor3 = theme.PrimaryLight
+                    if v.Name:find("Icon") and v.ImageTransparency > 0.4 then
+                        v.ImageColor3 = theme.PrimaryDark
+                    end
+                end
+                
+                -- Atualizar Gradientes Gerais
+                if v:IsA("UIGradient") then
+                    v.Color = ColorSequence.new({
+                        ColorSequenceKeypoint.new(0, theme.PrimaryLight),
+                        ColorSequenceKeypoint.new(0.5, theme.Accent),
+                        ColorSequenceKeypoint.new(1, theme.PrimaryLight)
+                    })
+                end
+                
+                -- Atualizar Frames (Checkboxes, Sliders, etc)
+                if v:IsA("Frame") then
+                    if v.Name == "Fill" or v.Name == "Circle" or v.Name == "Pin" or v.Name == "Drag" or v.Name == "InnerFrame" or v.Name == "indicator" then
+                        v.BackgroundColor3 = theme.Accent
+                    elseif v.Name == "Keybind" or v.Name == "Box" or v.Name == "Divider" or v.Name == "KeybindBox" then
+                        v.BackgroundColor3 = theme.Primary
+                    elseif v.Name == "Toggle" then
+                        v.BackgroundColor3 = ThemeColors.TertiaryBg
+                    elseif v.Name == "InnerStroke" then
+                        v.BackgroundColor3 = theme.Primary
+                    end
+                end
+            end)
+        end
+
+        -- Procura em todos os lugares possíveis
+        local search_targets = {coreGui, playerGui}
+        for _, target in ipairs(search_targets) do
+            for _, child in ipairs(target:GetChildren()) do
+                if child.Name == "River" or child.Name == "PingGui" or child.Name == "RiverNotifications" or 
+                   child.Name:find("Sigma") or child.Name == "BallVelocityGUI" then
+                    UpdateObject(child)
+                    for _, descendant in ipairs(child:GetDescendants()) do
+                        UpdateObject(descendant)
+                    end
+                end
+            end
+        end
+    end
+
+    -- Executa o refresh
+    task.spawn(function()
+        RefreshUI()
+        -- Adicionado para garantir que a aba atualmente selecionada seja repintada com as novas cores do tema
+        if Library and Library._config and Library._config._current_tab and Library._config._current_tab.Parent then
+            Library:update_tabs(Library._config._current_tab)
+        end
+    end)
+
+    -- Salvar tema
+    save_theme(themeName)
+
+    -- Notificar usuário
+    if Library and Library.SendNotification then
+        Library.SendNotification({
+            title = "UI Theme",
+            text = "Tema " .. themeName .. " aplicado com sucesso!",
+            duration = 2
+        })
+    end
+end
+
+-- Forçar atualização inicial do tema
+task.spawn(function()
+    task.wait(1)
+    if getgenv().ApplyTheme then
+        local savedTheme = load_theme("Blue Neon")
+        getgenv().ApplyTheme(savedTheme)
+    end
+end)
+
+-- Sistema de notificações fixado
+local function CreateNotificationContainer()
+    local container = Instance.new("ScreenGui")
+    container.Name = "RiverNotifications"
+    container.ResetOnSpawn = false
+    container.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    
+    -- Tenta colocar no CoreGui, se falhar vai pro PlayerGui
+    local success, _ = pcall(function() container.Parent = game:GetService("CoreGui") end)
+    if not success then
+        container.Parent = LocalPlayer:WaitForChild("PlayerGui")
+    end
+
+    local NotificationContainer = Instance.new("Frame")
+    NotificationContainer.Name = "NotificationContainer"
+    NotificationContainer.Size = UDim2.new(0, 300, 0, 0)
+    NotificationContainer.Position = UDim2.new(1, -310, 0, 10)
+    NotificationContainer.BackgroundTransparency = 1
+    NotificationContainer.ClipsDescendants = false
+    NotificationContainer.ZIndex = 100
+    NotificationContainer.Parent = container
+    NotificationContainer.AutomaticSize = Enum.AutomaticSize.Y
+
+    local UIListLayout = Instance.new("UIListLayout")
+    UIListLayout.FillDirection = Enum.FillDirection.Vertical
+    UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    UIListLayout.Padding = UDim.new(0, 10)
+    UIListLayout.Parent = NotificationContainer
+
+    return NotificationContainer
+end
+
+local NotificationContainer = nil
+pcall(function()
+    local core = game:GetService("CoreGui")
+    local existing = core:FindFirstChild("RiverNotifications")
+    if existing then
+        NotificationContainer = existing:FindFirstChild("NotificationContainer")
+    end
+end)
+
+if not NotificationContainer then
+    local existing = LocalPlayer.PlayerGui:FindFirstChild("RiverNotifications")
+    if existing then
+        NotificationContainer = existing:FindFirstChild("NotificationContainer")
+    end
+end
+
+if not NotificationContainer then
+    NotificationContainer = CreateNotificationContainer()
+end
+
+local Config = {
+    save = function(file_name, config)
+        local success_save, result = pcall(function()
+            local flags = HttpService:JSONEncode(config)
+            writefile('River/'..file_name..'.json', flags)
+        end)
+        if not success_save then
+            warn('failed to save config', result)
+        end
+    end,
+    load = function(file_name, config)
+        local success_load, result = pcall(function()
+            if not isfile('River/'..file_name..'.json') then
+                Config.save(file_name, config)
+                return config
+            end
+            
+            local flags = readfile('River/'..file_name..'.json')
+            if not flags then
+                Config.save(file_name, config)
+                return config
+            end
+            return HttpService:JSONDecode(flags)
+        end)
+        
+        if not success_load then
+            warn('failed to load config', result)
+            return config
+        end
+        
+        return result or config
+    end
+}
+
+local Library = {
+    _config = Config.load(tostring(game.GameId), {
+        _flags = {},
+        _keybinds = {},
+        _library = {}
+    }),
+    _choosing_keybind = false,
+    _device = nil,
+    _ui_open = true,
+    _ui_scale = 1,
+    _ui_loaded = false,
+    _ui = nil,
+    _dragging = false,
+    _drag_start = nil,
+    _container_position = nil,
+    _tab = 0
+}
+Library.__index = Library
+
+function Library.new()
+    local self = setmetatable({
+        _loaded = false,
+        _tab = 0,
+    }, Library)
+    self:create_ui()
+    return self
+end
+
+function Library.SendNotification(settings)
+    if not NotificationContainer or not NotificationContainer.Parent or not NotificationContainer:IsDescendantOf(game) then
+        NotificationContainer = CreateNotificationContainer()
+    end
+
+    local Notification = Instance.new("Frame")
+    Notification.Size = UDim2.new(1, 0, 0, 0)
+    Notification.BackgroundTransparency = 1
+    Notification.BorderSizePixel = 0
+    Notification.Name = "Notification"
+    Notification.Parent = NotificationContainer
+    Notification.AutomaticSize = Enum.AutomaticSize.Y
+    Notification.LayoutOrder = #NotificationContainer:GetChildren()
+
+    local UICorner = Instance.new("UICorner")
+    UICorner.CornerRadius = UDim.new(0, 8)
+    UICorner.Parent = Notification
+
+    local InnerFrame = Instance.new("Frame")
+    InnerFrame.Size = UDim2.new(1, 0, 0, 0)
+    InnerFrame.Position = UDim2.new(1, 310, 0, 0)
+    InnerFrame.BackgroundColor3 = ThemeColors.SecondaryBg
+    InnerFrame.BackgroundTransparency = 0.1
+    InnerFrame.BorderSizePixel = 0
+    InnerFrame.Name = "InnerFrame"
+    InnerFrame.Parent = Notification
+    InnerFrame.AutomaticSize = Enum.AutomaticSize.Y
+    InnerFrame.ZIndex = 101
+
+    local InnerUICorner = Instance.new("UICorner")
+    InnerUICorner.CornerRadius = UDim.new(0, 8)
+    InnerUICorner.Parent = InnerFrame
+    
+    local InnerStroke = Instance.new("UIStroke")
+    InnerStroke.Color = ThemeColors.Primary
+    InnerStroke.Transparency = 0.3
+    InnerStroke.Thickness = 1
+    InnerStroke.Parent = InnerFrame
+
+    local Title = Instance.new("TextLabel")
+    Title.Text = settings.title or "Notification Title"
+    Title.TextColor3 = ThemeColors.PrimaryLight
+    Title.FontFace = Font.new('rbxasset://fonts/families/GothamSSm.json', Enum.FontWeight.SemiBold, Enum.FontStyle.Normal)
+    Title.TextSize = 14
+    Title.Size = UDim2.new(1, -20, 0, 20)
+    Title.Position = UDim2.new(0, 10, 0, 8)
+    Title.BackgroundTransparency = 1
+    Title.TextXAlignment = Enum.TextXAlignment.Left
+    Title.TextYAlignment = Enum.TextYAlignment.Center
+    Title.TextWrapped = true
+    Title.AutomaticSize = Enum.AutomaticSize.Y
+    Title.Parent = InnerFrame
+    Title.ZIndex = 102
+
+    local Body = Instance.new("TextLabel")
+    Body.Text = settings.text or "This is the body of the notification."
+    Body.TextColor3 = ThemeColors.TextSecondary
+    Body.FontFace = Font.new('rbxasset://fonts/families/GothamSSm.json', Enum.FontWeight.Regular, Enum.FontStyle.Normal)
+    Body.TextSize = 12
+    Body.Size = UDim2.new(1, -20, 0, 0)
+    Body.Position = UDim2.new(0, 10, 0, 28)
+    Body.BackgroundTransparency = 1
+    Body.TextXAlignment = Enum.TextXAlignment.Left
+    Body.TextYAlignment = Enum.TextYAlignment.Top
+    Body.TextWrapped = true
+    Body.AutomaticSize = Enum.AutomaticSize.Y
+    Body.Parent = InnerFrame
+    Body.ZIndex = 102
+
+    -- Ajustar tamanho do InnerFrame após o texto ser renderizado
+    task.spawn(function()
+        wait(0.05)
+        local totalHeight = Title.TextBounds.Y + Body.TextBounds.Y + 20
+        InnerFrame.Size = UDim2.new(1, 0, 0, totalHeight)
+        Notification.Size = UDim2.new(1, 0, 0, totalHeight)
+    end)
+
+    task.spawn(function()
+        local tweenIn = TweenService:Create(InnerFrame, TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+            Position = UDim2.new(0, 0, 0, 0)
+        })
+        tweenIn:Play()
+        tweenIn.Completed:Wait()
+
+        local duration = settings.duration or 5
+        wait(duration)
+
+        local tweenOut = TweenService:Create(InnerFrame, TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.In), {
+            Position = UDim2.new(1, 310, 0, 0)
+        })
+        tweenOut:Play()
+
+        tweenOut.Completed:Connect(function()
+            Notification:Destroy()
+        end)
+    end)
+end
+
+function Library:get_screen_scale()
+    local viewport_size_x = workspace.CurrentCamera.ViewportSize.X
+    self._ui_scale = viewport_size_x / 1400
+end
+
+function Library:get_device()
+    local device = 'Unknown'
+    if not UserInputService.TouchEnabled and UserInputService.KeyboardEnabled and UserInputService.MouseEnabled then
+        device = 'PC'
+    elseif UserInputService.TouchEnabled then
+        device = 'Mobile'
+    elseif UserInputService.GamepadEnabled then
+        device = 'Console'
+    end
+    self._device = device
+end
+
+function Library:removed(action)
+    if self._ui then
+        self._ui.AncestryChanged:Once(action)
+    end
+end
+
+function Library:flag_type(flag, flag_type)
+    if not Library._config._flags[flag] then
+        return false
+    end
+    return typeof(Library._config._flags[flag]) == flag_type
+end
+
+function Library:remove_table_value(__table, table_value)
+    for index, value in ipairs(__table) do
+        if value == table_value then
+            table.remove(__table, index)
+            break
+        end
+    end
+end
+
+-- FUNÇÃO PARA CRIAR DROPDOWN COM REFRESH AUTOMÁTICO
+function Library:create_refresh_dropdown(settings)
+    local DropdownManager = {
+        _state = false,
+        _size = 0,
+        _options = settings.options or {},
+        _refresh_interval = settings.refresh_interval or 1,
+        _refresh_callback = settings.refresh_callback,
+        _refresh_running = false
+    }
+
+    -- Função para atualizar as opções do dropdown
+    function DropdownManager:refresh_options()
+        if self._refresh_callback then
+            local new_options = self._refresh_callback()
+            if new_options then
+                self._options = new_options
+                self:update_display()
+            end
+        end
+    end
+
+    -- Função para atualizar a exibição do dropdown
+    function DropdownManager:update_display()
+        -- Limpar opções antigas
+        for _, child in ipairs(self._options_frame:GetChildren()) do
+            if child:IsA("TextButton") then
+                child:Destroy()
+            end
+        end
+
+        -- Adicionar novas opções
+        for index, value in ipairs(self._options) do
+            local Option = Instance.new('TextButton')
+            Option.FontFace = Font.new('rbxasset://fonts/families/GothamSSm.json', Enum.FontWeight.SemiBold, Enum.FontStyle.Normal)
+            Option.Active = false
+            Option.TextTransparency = 0.6
+            Option.AnchorPoint = Vector2.new(0, 0.5)
+            Option.TextSize = 10
+            Option.Size = UDim2.new(0, 186, 0, 16)
+            Option.TextColor3 = ThemeColors.TextSecondary
+            Option.BorderColor3 = ThemeColors.Border
+            Option.Text = (typeof(value) == "string" and value) or value.Name
+            Option.AutoButtonColor = false
+            Option.Name = 'Option'
+            Option.BackgroundTransparency = 1
+            Option.TextXAlignment = Enum.TextXAlignment.Left
+            Option.Selectable = false
+            Option.Position = UDim2.new(0.05, 0, 0.342, 0)
+            Option.BorderSizePixel = 0
+            Option.BackgroundColor3 = ThemeColors.PrimaryLight
+            Option.Parent = self._options_frame
+            
+            local UIGradient = Instance.new('UIGradient')
+            UIGradient.Transparency = NumberSequence.new{
+                NumberSequenceKeypoint.new(0, 0),
+                NumberSequenceKeypoint.new(0.704, 0),
+                NumberSequenceKeypoint.new(0.872, 0.3625),
+                NumberSequenceKeypoint.new(1, 1)
+            }
+            UIGradient.Parent = Option
+
+            Option.MouseButton1Click:Connect(function()
+                DropdownManager:update(value)
+            end)
+        end
+    end
+
+    -- Iniciar refresh automático se especificado
+    if settings.auto_refresh then
+        DropdownManager._refresh_running = true
+        task.spawn(function()
+            while DropdownManager._refresh_running do
+                DropdownManager:refresh_options()
+                wait(DropdownManager._refresh_interval)
+            end
+        end)
+    end
+
+    -- Método para parar o refresh
+    function DropdownManager:stop_refresh()
+        self._refresh_running = false
+    end
+
+    -- Método para iniciar o refresh
+    function DropdownManager:start_refresh()
+        self._refresh_running = true
+        task.spawn(function()
+            while self._refresh_running do
+                self:refresh_options()
+                wait(self._refresh_interval)
+            end
+        end)
+    end
+
+    return DropdownManager
+end
+
+function Library:create_ui()
+    local old_River = CoreGui:FindFirstChild('River')
+    if old_River then
+        Debris:AddItem(old_River, 0)
+    end
+
+    local River = Instance.new('ScreenGui')
+    River.ResetOnSpawn = false
+    River.Name = 'River'
+    River.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    River.Parent = CoreGui
+    
+    local Container = Instance.new('Frame')
+    Container.ClipsDescendants = true
+    Container.BorderColor3 = ThemeColors.Border
+    Container.AnchorPoint = Vector2.new(0.5, 0.5)
+    Container.Name = 'Container'
+    Container.BackgroundTransparency = 0.1
+    Container.BackgroundColor3 = ThemeColors.Background
+    Container.Position = UDim2.new(0.5, 0, 0.5, 0)
+    Container.Size = UDim2.new(0, 0, 0, 0)
+    Container.Active = true
+    Container.BorderSizePixel = 0
+    Container.Parent = River
+    
+    local UICorner = Instance.new('UICorner')
+    UICorner.CornerRadius = UDim.new(0, 8)
+    UICorner.Parent = Container
+    
+    local UIStroke = Instance.new('UIStroke')
+    UIStroke.Color = ThemeColors.Primary
+    UIStroke.Transparency = 0.3
+    UIStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    UIStroke.Thickness = 1.5
+    UIStroke.Parent = Container
+    
+    local Handler = Instance.new('Frame')
+    Handler.BackgroundTransparency = 1
+    Handler.Name = 'Handler'
+    Handler.BorderColor3 = ThemeColors.Border
+    Handler.Size = UDim2.new(0, 698, 0, 479)
+    Handler.BorderSizePixel = 0
+    Handler.BackgroundColor3 = ThemeColors.PrimaryLight
+    Handler.Parent = Container
+    
+    local Tabs = Instance.new('ScrollingFrame')
+    Tabs.ScrollBarImageTransparency = 1
+    Tabs.ScrollBarThickness = 0
+    Tabs.Name = 'Tabs'
+    Tabs.Size = UDim2.new(0, 129, 0, 401)
+    Tabs.Selectable = false
+    Tabs.AutomaticCanvasSize = Enum.AutomaticSize.XY
+    Tabs.BackgroundTransparency = 1
+    Tabs.Position = UDim2.new(0.026, 0, 0.111, 0)
+    Tabs.BorderColor3 = ThemeColors.Border
+    Tabs.BackgroundColor3 = ThemeColors.PrimaryLight
+    Tabs.BorderSizePixel = 0
+    Tabs.CanvasSize = UDim2.new(0, 0, 0.5, 0)
+    Tabs.Parent = Handler
+    
+    local UIListLayout = Instance.new('UIListLayout')
+    UIListLayout.Padding = UDim.new(0, 3)
+    UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    UIListLayout.Parent = Tabs
+    
+    local ClientName = Instance.new('TextLabel')
+    ClientName.FontFace = Font.new('rbxasset://fonts/families/GothamSSm.json', Enum.FontWeight.Bold, Enum.FontStyle.Normal)
+    ClientName.TextColor3 = ThemeColors.PrimaryLight
+    ClientName.TextTransparency = 0.1
+    ClientName.Text = GlobalConfig.ClientName
+    ClientName.Name = 'River'
+    ClientName.Size = UDim2.new(0, 60, 0, 15)
+    ClientName.AnchorPoint = Vector2.new(0, 0.5)
+    ClientName.Position = UDim2.new(0.056, 0, 0.055, 0)
+    ClientName.BackgroundTransparency = 1
+    ClientName.TextXAlignment = Enum.TextXAlignment.Left
+    ClientName.BorderSizePixel = 0
+    ClientName.BorderColor3 = ThemeColors.Border
+    ClientName.TextSize = 15
+    ClientName.BackgroundColor3 = ThemeColors.PrimaryLight
+    ClientName.Parent = Handler
+    
+    local UIGradient = Instance.new('UIGradient')
+    UIGradient.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, ThemeColors.PrimaryLight),
+        ColorSequenceKeypoint.new(1, ThemeColors.Accent)
+    }
+    UIGradient.Rotation = 90
+    UIGradient.Parent = ClientName
+    
+    local Pin = Instance.new('Frame')
+    Pin.Name = 'Pin'
+    Pin.Position = UDim2.new(0.026, 0, 0.136, 0)
+    Pin.BorderColor3 = ThemeColors.Border
+    Pin.Size = UDim2.new(0, 3, 0, 16)
+    Pin.BorderSizePixel = 0
+    Pin.BackgroundColor3 = ThemeColors.Accent
+    Pin.Parent = Handler
+    
+    local UICorner2 = Instance.new('UICorner')
+    UICorner2.CornerRadius = UDim.new(1, 0)
+    UICorner2.Parent = Pin
+    
+    local Icon = Instance.new('ImageLabel')
+    Icon.ImageColor3 = ThemeColors.PrimaryLight
+    Icon.ScaleType = Enum.ScaleType.Fit
+    Icon.BorderColor3 = ThemeColors.Border
+    Icon.AnchorPoint = Vector2.new(0, 0.5)
+    Icon.Image = 'rbxassetid://107819132007001'
+    Icon.BackgroundTransparency = 1
+    Icon.Position = UDim2.new(0.025, 0, 0.055, 0)
+    Icon.Name = 'Icon'
+    Icon.Size = UDim2.new(0, 18, 0, 18)
+    Icon.BorderSizePixel = 0
+    Icon.BackgroundColor3 = ThemeColors.PrimaryLight
+    Icon.Parent = Handler
+    
+    local Divider = Instance.new('Frame')
+    Divider.Name = 'Divider'
+    Divider.BackgroundTransparency = 0.7
+    Divider.Position = UDim2.new(0.235, 0, 0, 0)
+    Divider.BorderColor3 = ThemeColors.Border
+    Divider.Size = UDim2.new(0, 1, 0, 479)
+    Divider.BorderSizePixel = 0
+    Divider.BackgroundColor3 = ThemeColors.Primary
+    Divider.Parent = Handler
+    
+    local Sections = Instance.new('Folder')
+    Sections.Name = 'Sections'
+    Sections.Parent = Handler
+    
+    local Minimize = Instance.new('TextButton')
+    Minimize.FontFace = Font.new('rbxasset://fonts/families/SourceSansPro.json', Enum.FontWeight.Regular, Enum.FontStyle.Normal)
+    Minimize.TextColor3 = Color3.fromRGB(0, 0, 0)
+    Minimize.BorderColor3 = ThemeColors.Border
+    Minimize.Text = ''
+    Minimize.AutoButtonColor = false
+    Minimize.Name = 'Minimize'
+    Minimize.BackgroundTransparency = 1
+    Minimize.Position = UDim2.new(0.020, 0, 0.029, 0)
+    Minimize.Size = UDim2.new(0, 24, 0, 24)
+    Minimize.BorderSizePixel = 0
+    Minimize.TextSize = 14
+    Minimize.BackgroundColor3 = ThemeColors.PrimaryLight
+    Minimize.Parent = Handler
+    
+    local MinimizeIcon = Instance.new('ImageLabel')
+    MinimizeIcon.Image = "rbxassetid://107349188422229"
+    MinimizeIcon.Size = UDim2.new(0, 16, 0, 16)
+    MinimizeIcon.Position = UDim2.new(0.5, 0, 0.5, 0)
+    MinimizeIcon.AnchorPoint = Vector2.new(0.5, 0.5)
+    MinimizeIcon.BackgroundTransparency = 1
+    MinimizeIcon.ImageColor3 = ThemeColors.TextSecondary
+    MinimizeIcon.Parent = Minimize
+    
+    local UIScale = Instance.new('UIScale')
+    UIScale.Parent = Container    
+    
+    self._ui = River
+
+    local function on_drag(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then 
+            self._dragging = true
+            self._drag_start = input.Position
+            self._container_position = Container.Position
+
+            local input_ended
+            input_ended = input.Changed:Connect(function()
+                if input.UserInputState ~= Enum.UserInputState.End then
+                    return
+                end
+                if input_ended then
+                    input_ended:Disconnect()
+                end
+                self._dragging = false
+            end)
+            Connections['container_input_ended'] = input_ended
+        end
+    end
+
+    local function update_drag(input)
+        local delta = input.Position - self._drag_start
+        local position = UDim2.new(
+            self._container_position.X.Scale, 
+            self._container_position.X.Offset + delta.X, 
+            self._container_position.Y.Scale, 
+            self._container_position.Y.Offset + delta.Y
+        )
+        TweenService:Create(Container, TweenInfo.new(0.2), {
+            Position = position
+        }):Play()
+    end
+
+    local function drag(input)
+        if not self._dragging then
+            return
+        end
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            update_drag(input)
+        end
+    end
+
+    Connections['container_input_began'] = Container.InputBegan:Connect(on_drag)
+    Connections['input_changed'] = UserInputService.InputChanged:Connect(drag)
+
+    self:removed(function()
+        self._ui = nil
+        Connections.disconnect_all()
+    end)
+
+    function self:Update1Run(a)
+        if a == "nil" then
+            Container.BackgroundTransparency = 0.1
+        else
+            pcall(function()
+                Container.BackgroundTransparency = tonumber(a)
+            end)
+        end
+    end
+
+    function self:UIVisiblity()
+        River.Enabled = not River.Enabled
+    end
+
+    function self:change_visiblity(state)
+        if state then
+            TweenService:Create(Container, TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+                Size = UDim2.fromOffset(698, 479)
+            }):Play()
+        else
+            TweenService:Create(Container, TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+                Size = UDim2.fromOffset(104.5, 52)
+            }):Play()
+        end
+    end
+    
+    function self:load()
+        local content = {}
+        for _, object in River:GetDescendants() do
+            if not object:IsA('ImageLabel') then
+                continue
+            end
+            table.insert(content, object)
+        end
+        ContentProvider:PreloadAsync(content)
+        self:get_device()
+
+        if self._device == 'Mobile' or self._device == 'Unknown' then
+            self:get_screen_scale()
+            UIScale.Scale = self._ui_scale
+    
+            Connections['ui_scale'] = workspace.CurrentCamera:GetPropertyChangedSignal('ViewportSize'):Connect(function()
+                self:get_screen_scale()
+                UIScale.Scale = self._ui_scale
+            end)
+        end
+    
+        TweenService:Create(Container, TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+            Size = UDim2.fromOffset(698, 479)
+        }):Play()
+
+        self._ui_loaded = true
+    end
+
+    function self:update_tabs(tab)
+        for _, object in Tabs:GetChildren() do
+            if object.Name ~= 'Tab' then
+                continue
+            end
+
+            if object == tab then
+                if object.BackgroundTransparency ~= 0.3 then
+                    local offset = object.LayoutOrder * (0.113 / 1.3)
+
+                    TweenService:Create(Pin, TweenInfo.new(0.3, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+                        Position = UDim2.fromScale(0.026, 0.135 + offset)
+                    }):Play()    
+
+                    TweenService:Create(object, TweenInfo.new(0.3, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+                        BackgroundTransparency = 0.3,
+                        BackgroundColor3 = ThemeColors.SecondaryBg
+                    }):Play()
+
+                    if object.TextLabel then
+                        -- Garante que a cor do texto da aba selecionada seja a PrimaryLight do novo tema
+                        TweenService:Create(object.TextLabel, TweenInfo.new(0.3, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+                            TextTransparency = 0.1,
+                            TextColor3 = ThemeColors.PrimaryLight
+                        }):Play()
+
+                        -- Desativa o gradiente na aba selecionada
+                        local gradient = object.TextLabel:FindFirstChildOfClass("UIGradient")
+                        if gradient then
+                            gradient.Enabled = false
+                        end
+                    end
+
+                    if object.Icon then
+                        TweenService:Create(object.Icon, TweenInfo.new(0.3, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+                            ImageTransparency = 0.1,
+                            ImageColor3 = ThemeColors.PrimaryLight
+                        }):Play()
+                    end
+                end
+                continue
+            end
+
+            if object.BackgroundTransparency ~= 1 then
+                TweenService:Create(object, TweenInfo.new(0.3, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+                    BackgroundTransparency = 1
+                }):Play()
+                if object.TextLabel then
+                    -- Garante que a cor do texto da aba não selecionada seja a TextSecondary do novo tema
+                    TweenService:Create(object.TextLabel, TweenInfo.new(0.3, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+                        TextTransparency = 0.5,
+                        TextColor3 = ThemeColors.TextSecondary
+                    }):Play()
+
+                    -- Ativa o gradiente na aba não selecionada
+                    local gradient = object.TextLabel:FindFirstChildOfClass("UIGradient")
+                    if gradient then
+                        gradient.Enabled = true
+                        -- Atualiza a cor do gradiente para o novo tema
+                        gradient.Color = ColorSequence.new({
+                            ColorSequenceKeypoint.new(0, ThemeColors.TextPrimary),
+                            ColorSequenceKeypoint.new(0.5, ThemeColors.TextSecondary),
+                            ColorSequenceKeypoint.new(1, ThemeColors.TextDisabled)
+                        })
+                    end
+                end
+
+                if object.Icon then
+                    TweenService:Create(object.Icon, TweenInfo.new(0.3, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+                        ImageTransparency = 0.5,
+                        ImageColor3 = ThemeColors.TextSecondary
+                    }):Play()
+                end
+            end
+        end
+    end
+
+    function self:update_sections(left_section, right_section)
+        for _, object in Sections:GetChildren() do
+            if object == left_section or object == right_section then
+                object.Visible = true
+                continue
+            end
+            object.Visible = false
+        end
+    end
+
+    function self:create_tab(title, icon)
+        local TabManager = {}
+
+        local font_params = Instance.new('GetTextBoundsParams')
+        font_params.Text = title
+        font_params.Font = Font.new('rbxasset://fonts/families/GothamSSm.json', Enum.FontWeight.Medium, Enum.FontStyle.Normal)
+        font_params.Size = 12
+        font_params.Width = 10000
+
+        local font_size = TextService:GetTextBoundsAsync(font_params)
+        local first_tab = not Tabs:FindFirstChild('Tab')
+
+        local Tab = Instance.new('TextButton')
+        Tab.FontFace = Font.new('rbxasset://fonts/families/SourceSansPro.json', Enum.FontWeight.Regular, Enum.FontStyle.Normal)
+        Tab.TextColor3 = Color3.fromRGB(0, 0, 0)
+        Tab.BorderColor3 = ThemeColors.Border
+        Tab.Text = ''
+        Tab.AutoButtonColor = false
+        Tab.BackgroundTransparency = 1
+        Tab.Name = 'Tab'
+        Tab.Size = UDim2.new(0, 129, 0, 36)
+        Tab.BorderSizePixel = 0
+        Tab.TextSize = 14
+        Tab.BackgroundColor3 = ThemeColors.TertiaryBg
+        Tab.Parent = Tabs
+        Tab.LayoutOrder = self._tab
+        
+        local UICorner3 = Instance.new('UICorner')
+        UICorner3.CornerRadius = UDim.new(0, 4)
+        UICorner3.Parent = Tab
+        
+        local TextLabel = Instance.new('TextLabel')
+        TextLabel.FontFace = Font.new('rbxasset://fonts/families/GothamSSm.json', Enum.FontWeight.Medium, Enum.FontStyle.Normal)
+        TextLabel.TextColor3 = ThemeColors.TextSecondary
+        TextLabel.TextTransparency = 0.5
+        TextLabel.Text = title
+        TextLabel.Size = UDim2.new(0, font_size.X, 0, 15)
+        TextLabel.AnchorPoint = Vector2.new(0, 0.5)
+        TextLabel.Position = UDim2.new(0.240, 0, 0.5, 0)
+        TextLabel.BackgroundTransparency = 1
+        TextLabel.TextXAlignment = Enum.TextXAlignment.Left
+        TextLabel.BorderSizePixel = 0
+        TextLabel.BorderColor3 = ThemeColors.Border
+        TextLabel.TextSize = 12
+        TextLabel.BackgroundColor3 = ThemeColors.PrimaryLight
+        TextLabel.Parent = Tab
+        
+        local UIGradient2 = Instance.new('UIGradient')
+        UIGradient2.Color = ColorSequence.new{
+            ColorSequenceKeypoint.new(0, ThemeColors.TextPrimary),
+            ColorSequenceKeypoint.new(0.5, ThemeColors.TextSecondary),
+            ColorSequenceKeypoint.new(1, ThemeColors.TextDisabled)
+        }
+        UIGradient2.Enabled = true
+        UIGradient2.Parent = TextLabel
+        
+        local Icon2 = Instance.new('ImageLabel')
+        Icon2.ScaleType = Enum.ScaleType.Fit
+        Icon2.ImageTransparency = 0.5
+        Icon2.BorderColor3 = ThemeColors.Border
+        Icon2.AnchorPoint = Vector2.new(0, 0.5)
+        Icon2.BackgroundTransparency = 1
+        Icon2.Position = UDim2.new(0.100, 0, 0.5, 0)
+        Icon2.Name = 'Icon'
+        Icon2.Image = icon
+        Icon2.Size = UDim2.new(0, 14, 0, 14)
+        Icon2.BorderSizePixel = 0
+        Icon2.BackgroundColor3 = ThemeColors.PrimaryLight
+        Icon2.Parent = Tab
+
+        local LeftSection = Instance.new('ScrollingFrame')
+        LeftSection.Name = 'LeftSection'
+        LeftSection.AutomaticCanvasSize = Enum.AutomaticSize.XY
+        LeftSection.ScrollBarThickness = 0
+        LeftSection.Size = UDim2.new(0, 243, 0, 445)
+        LeftSection.Selectable = false
+        LeftSection.AnchorPoint = Vector2.new(0, 0.5)
+        LeftSection.ScrollBarImageTransparency = 1
+        LeftSection.BackgroundTransparency = 1
+        LeftSection.Position = UDim2.new(0.259, 0, 0.5, 0)
+        LeftSection.BorderColor3 = ThemeColors.Border
+        LeftSection.BackgroundColor3 = ThemeColors.PrimaryLight
+        LeftSection.BorderSizePixel = 0
+        LeftSection.CanvasSize = UDim2.new(0, 0, 0.5, 0)
+        LeftSection.Visible = false
+        LeftSection.Parent = Sections
+        
+        local UIListLayout2 = Instance.new('UIListLayout')
+        UIListLayout2.Padding = UDim.new(0, 11)
+        UIListLayout2.HorizontalAlignment = Enum.HorizontalAlignment.Center
+        UIListLayout2.SortOrder = Enum.SortOrder.LayoutOrder
+        UIListLayout2.Parent = LeftSection
+        
+        local UIPadding = Instance.new('UIPadding')
+        UIPadding.PaddingTop = UDim.new(0, 1)
+        UIPadding.Parent = LeftSection
+
+        local RightSection = Instance.new('ScrollingFrame')
+        RightSection.Name = 'RightSection'
+        RightSection.AutomaticCanvasSize = Enum.AutomaticSize.XY
+        RightSection.ScrollBarThickness = 0
+        RightSection.Size = UDim2.new(0, 243, 0, 445)
+        RightSection.Selectable = false
+        RightSection.AnchorPoint = Vector2.new(0, 0.5)
+        RightSection.ScrollBarImageTransparency = 1
+        RightSection.BackgroundTransparency = 1
+        RightSection.Position = UDim2.new(0.629, 0, 0.5, 0)
+        RightSection.BorderColor3 = ThemeColors.Border
+        RightSection.BackgroundColor3 = ThemeColors.PrimaryLight
+        RightSection.BorderSizePixel = 0
+        RightSection.CanvasSize = UDim2.new(0, 0, 0.5, 0)
+        RightSection.Visible = false
+        RightSection.Parent = Sections
+        
+        local UIListLayout3 = Instance.new('UIListLayout')
+        UIListLayout3.Padding = UDim.new(0, 11)
+        UIListLayout3.HorizontalAlignment = Enum.HorizontalAlignment.Center
+        UIListLayout3.SortOrder = Enum.SortOrder.LayoutOrder
+        UIListLayout3.Parent = RightSection
+        
+        local UIPadding2 = Instance.new('UIPadding')
+        UIPadding2.PaddingTop = UDim.new(0, 1)
+        UIPadding2.Parent = RightSection
+
+        self._tab = self._tab + 1
+
+        if first_tab then
+            self:update_tabs(Tab)
+            self:update_sections(LeftSection, RightSection)
+        end
+
+        Tab.MouseButton1Click:Connect(function()
+            self:update_tabs(Tab)
+            self:update_sections(LeftSection, RightSection)
+        end)
+
+        function TabManager:create_module(settings)
+            settings.flag = settings.flag or (settings.title and settings.title:gsub("%s+", "_")) or "Module_" .. math.random(1000, 9999)
+            local LayoutOrderModule = 0
+            local ModuleManager = {
+                _state = false,
+                _size = 0,
+                _multiplier = 0
+            }
+
+            local targetSection = settings.section == 'right' and RightSection or LeftSection
+
+            local Module = Instance.new('Frame')
+            Module.ClipsDescendants = true
+            Module.BorderColor3 = ThemeColors.Border
+            Module.BackgroundTransparency = 0.15
+            Module.Position = UDim2.new(0.004, 0, 0, 0)
+            Module.Name = 'Module'
+            Module.Size = UDim2.new(0, 241, 0, 85)
+            Module.BorderSizePixel = 0
+            Module.BackgroundColor3 = ThemeColors.SecondaryBg
+            Module.Parent = targetSection
+
+            local UIListLayout4 = Instance.new('UIListLayout')
+            UIListLayout4.SortOrder = Enum.SortOrder.LayoutOrder
+            UIListLayout4.Parent = Module
+            
+            local UICorner4 = Instance.new('UICorner')
+            UICorner4.CornerRadius = UDim.new(0, 6)
+            UICorner4.Parent = Module
+            
+            local UIStroke2 = Instance.new('UIStroke')
+            UIStroke2.Color = ThemeColors.Primary
+            UIStroke2.Transparency = 0.3
+            UIStroke2.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+            UIStroke2.Thickness = 1
+            UIStroke2.Parent = Module
+            
+            local Header = Instance.new('TextButton')
+            Header.FontFace = Font.new('rbxasset://fonts/families/SourceSansPro.json', Enum.FontWeight.Regular, Enum.FontStyle.Normal)
+            Header.TextColor3 = Color3.fromRGB(0, 0, 0)
+            Header.BorderColor3 = ThemeColors.Border
+            Header.Text = ''
+            Header.AutoButtonColor = false
+            Header.BackgroundTransparency = 1
+            Header.Name = 'Header'
+            Header.Size = UDim2.new(0, 241, 0, 85)
+            Header.BorderSizePixel = 0
+            Header.TextSize = 14
+            Header.BackgroundColor3 = ThemeColors.PrimaryLight
+            Header.Parent = Module
+            
+            local Icon3 = Instance.new('ImageLabel')
+            Icon3.ImageColor3 = ThemeColors.PrimaryLight
+            Icon3.ScaleType = Enum.ScaleType.Fit
+            Icon3.ImageTransparency = 0.5
+            Icon3.BorderColor3 = ThemeColors.Border
+            Icon3.AnchorPoint = Vector2.new(0, 0.5)
+            Icon3.Image = 'rbxassetid://79095934438045'
+            Icon3.BackgroundTransparency = 1
+            Icon3.Position = UDim2.new(0.071, 0, 0.82, 0)
+            Icon3.Name = 'Icon'
+            Icon3.Size = UDim2.new(0, 14, 0, 14)
+            Icon3.BorderSizePixel = 0
+            Icon3.BackgroundColor3 = ThemeColors.PrimaryLight
+            Icon3.Parent = Header
+            
+            local ModuleName = Instance.new('TextLabel')
+            ModuleName.FontFace = Font.new('rbxasset://fonts/families/GothamSSm.json', Enum.FontWeight.SemiBold, Enum.FontStyle.Normal)
+            ModuleName.TextColor3 = ThemeColors.PrimaryLight
+            ModuleName.TextTransparency = 0.1
+            if not settings.rich then
+                ModuleName.Text = settings.title or "Module"
+            else
+                ModuleName.RichText = true
+                ModuleName.Text = settings.richtext or "<font color='rgb(255,255,255)'>River</font> Module"
+            end
+            ModuleName.Name = 'ModuleName'
+            ModuleName.Size = UDim2.new(0, 205, 0, 13)
+            ModuleName.AnchorPoint = Vector2.new(0, 0.5)
+            ModuleName.Position = UDim2.new(0.073, 0, 0.24, 0)
+            ModuleName.BackgroundTransparency = 1
+            ModuleName.TextXAlignment = Enum.TextXAlignment.Left
+            ModuleName.BorderSizePixel = 0
+            ModuleName.BorderColor3 = ThemeColors.Border
+            ModuleName.TextSize = 13
+            ModuleName.BackgroundColor3 = ThemeColors.PrimaryLight
+            ModuleName.Parent = Header
+            
+            local Description = Instance.new('TextLabel')
+            Description.FontFace = Font.new('rbxasset://fonts/families/GothamSSm.json', Enum.FontWeight.Medium, Enum.FontStyle.Normal)
+            Description.TextColor3 = ThemeColors.TextSecondary
+            Description.TextTransparency = 0.3
+            Description.Text = settings.description or "Module Description"
+            Description.Name = 'Description'
+            Description.Size = UDim2.new(0, 205, 0, 13)
+            Description.AnchorPoint = Vector2.new(0, 0.5)
+            Description.Position = UDim2.new(0.073, 0, 0.42, 0)
+            Description.BackgroundTransparency = 1
+            Description.TextXAlignment = Enum.TextXAlignment.Left
+            Description.BorderSizePixel = 0
+            Description.BorderColor3 = ThemeColors.Border
+            Description.TextSize = 10
+            Description.BackgroundColor3 = ThemeColors.PrimaryLight
+            Description.Parent = Header
+            
+            local Toggle = Instance.new('Frame')
+            Toggle.Name = 'Toggle'
+            Toggle.BackgroundTransparency = 0.8
+            Toggle.Position = UDim2.new(0.82, 0, 0.757, 0)
+            Toggle.BorderColor3 = ThemeColors.Border
+            Toggle.Size = UDim2.new(0, 28, 0, 14)
+            Toggle.BorderSizePixel = 0
+            Toggle.BackgroundColor3 = ThemeColors.TertiaryBg
+            Toggle.Parent = Header
+            
+            local UICorner5 = Instance.new('UICorner')
+            UICorner5.CornerRadius = UDim.new(1, 0)
+            UICorner5.Parent = Toggle
+            
+            local Circle = Instance.new('Frame')
+            Circle.BorderColor3 = ThemeColors.Border
+            Circle.AnchorPoint = Vector2.new(0, 0.5)
+            Circle.BackgroundTransparency = 0.3
+            Circle.Position = UDim2.new(0, 2, 0.5, 0)
+            Circle.Name = 'Circle'
+            Circle.Size = UDim2.new(0, 10, 0, 10)
+            Circle.BorderSizePixel = 0
+            Circle.BackgroundColor3 = ThemeColors.TextDisabled
+            Circle.Parent = Toggle
+            
+            local UICorner6 = Instance.new('UICorner')
+            UICorner6.CornerRadius = UDim.new(1, 0)
+            UICorner6.Parent = Circle
+            
+            local Keybind = Instance.new('Frame')
+            Keybind.Name = 'Keybind'
+            Keybind.BackgroundTransparency = 0.8
+            Keybind.Position = UDim2.new(0.15, 0, 0.735, 0)
+            Keybind.BorderColor3 = ThemeColors.Border
+            Keybind.Size = UDim2.new(0, 33, 0, 15)
+            Keybind.BorderSizePixel = 0
+            Keybind.BackgroundColor3 = ThemeColors.Primary
+            Keybind.Parent = Header
+            
+            local UICorner7 = Instance.new('UICorner')
+            UICorner7.CornerRadius = UDim.new(0, 4)
+            UICorner7.Parent = Keybind
+            
+            local TextLabel2 = Instance.new('TextLabel')
+            TextLabel2.FontFace = Font.new('rbxasset://fonts/families/GothamSSm.json', Enum.FontWeight.SemiBold, Enum.FontStyle.Normal)
+            TextLabel2.TextColor3 = ThemeColors.TextPrimary
+            TextLabel2.BorderColor3 = ThemeColors.Border
+            TextLabel2.Text = 'None'
+            TextLabel2.AnchorPoint = Vector2.new(0.5, 0.5)
+            TextLabel2.Size = UDim2.new(0, 25, 0, 13)
+            TextLabel2.BackgroundTransparency = 1
+            TextLabel2.TextXAlignment = Enum.TextXAlignment.Left
+            TextLabel2.Position = UDim2.new(0.5, 0, 0.5, 0)
+            TextLabel2.BorderSizePixel = 0
+            TextLabel2.TextSize = 10
+            TextLabel2.BackgroundColor3 = ThemeColors.PrimaryLight
+            TextLabel2.Parent = Keybind
+            
+            local Divider2 = Instance.new('Frame')
+            Divider2.BorderColor3 = ThemeColors.Border
+            Divider2.AnchorPoint = Vector2.new(0.5, 0)
+            Divider2.BackgroundTransparency = 0.8
+            Divider2.Position = UDim2.new(0.5, 0, 0.62, 0)
+            Divider2.Name = 'Divider'
+            Divider2.Size = UDim2.new(0, 241, 0, 1)
+            Divider2.BorderSizePixel = 0
+            Divider2.BackgroundColor3 = ThemeColors.Primary
+            Divider2.Parent = Header
+            
+            local Divider3 = Instance.new('Frame')
+            Divider3.BorderColor3 = ThemeColors.Border
+            Divider3.AnchorPoint = Vector2.new(0.5, 0)
+            Divider3.BackgroundTransparency = 0.8
+            Divider3.Position = UDim2.new(0.5, 0, 1, 0)
+            Divider3.Name = 'Divider'
+            Divider3.Size = UDim2.new(0, 241, 0, 1)
+            Divider3.BorderSizePixel = 0
+            Divider3.BackgroundColor3 = ThemeColors.Primary
+            Divider3.Parent = Header
+            
+            local Options = Instance.new('Frame')
+            Options.Name = 'Options'
+            Options.BackgroundTransparency = 1
+            Options.Position = UDim2.new(0, 0, 1, 0)
+            Options.BorderColor3 = ThemeColors.Border
+            Options.Size = UDim2.new(0, 241, 0, 8)
+            Options.BorderSizePixel = 0
+            Options.BackgroundColor3 = ThemeColors.PrimaryLight
+            Options.Parent = Module
+
+            local UIPadding3 = Instance.new('UIPadding')
+            UIPadding3.PaddingTop = UDim.new(0, 8)
+            UIPadding3.Parent = Options
+
+            local UIListLayout5 = Instance.new('UIListLayout')
+            UIListLayout5.Padding = UDim.new(0, 5)
+            UIListLayout5.HorizontalAlignment = Enum.HorizontalAlignment.Center
+            UIListLayout5.SortOrder = Enum.SortOrder.LayoutOrder
+            UIListLayout5.Parent = Options
+
+            function ModuleManager:change_state(state)
+                self._state = state
+
+                if self._state then
+                    TweenService:Create(Module, TweenInfo.new(0.3, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+                        Size = UDim2.fromOffset(241, 85 + self._size + self._multiplier)
+                    }):Play()
+
+                        TweenService:Create(Toggle, TweenInfo.new(0.3, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+                            BackgroundColor3 = ThemeColors.PrimaryDark -- Fundo do Toggle no estado ON
+                        }):Play()
+
+                    TweenService:Create(Circle, TweenInfo.new(0.3, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+                        BackgroundColor3 = ThemeColors.Accent,
+                        Position = UDim2.fromScale(0.53, 0.5)
+                    }):Play()
+                    
+                    local glow = Instance.new('UIStroke')
+                    glow.Color = ThemeColors.Accent
+                    glow.Transparency = 0.5
+                    glow.Thickness = 1
+                    glow.Parent = Toggle
+                    
+                    TweenService:Create(glow, TweenInfo.new(0.3), {
+                        Transparency = 0.8
+                    }):Play()
+                else
+                    TweenService:Create(Module, TweenInfo.new(0.3, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+                        Size = UDim2.fromOffset(241, 85)
+                    }):Play()
+
+                    TweenService:Create(Toggle, TweenInfo.new(0.3, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+                        BackgroundColor3 = ThemeColors.TertiaryBg -- Fundo do Toggle no estado OFF
+                    }):Play()
+
+                    TweenService:Create(Circle, TweenInfo.new(0.3, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+                        BackgroundColor3 = ThemeColors.TextDisabled,
+                        Position = UDim2.fromScale(0, 0.5)
+                    }):Play()
+                end
+
+                Library._config._flags[settings.flag] = self._state
+                Config.save(tostring(game.GameId), Library._config)
+
+                if settings.callback then
+                    settings.callback(self._state)
+                end
+            end
+            
+            function ModuleManager:connect_keybind()
+                if not Library._config._keybinds[settings.flag] then
+                    return
+                end
+
+                Connections[settings.flag..'_keybind'] = UserInputService.InputBegan:Connect(function(input, process)
+                    if process then
+                        return
+                    end
+                    
+                    if tostring(input.KeyCode) ~= Library._config._keybinds[settings.flag] then
+                        return
+                    end
+                    
+                    self:change_state(not self._state)
+                end)
+            end
+
+            function ModuleManager:scale_keybind(empty)
+                if Library._config._keybinds[settings.flag] and not empty then
+                    local keybind_string = string.gsub(tostring(Library._config._keybinds[settings.flag]), 'Enum.KeyCode.', '')
+
+                    local font_params = Instance.new('GetTextBoundsParams')
+                    font_params.Text = keybind_string
+                    font_params.Font = Font.new('rbxasset://fonts/families/Montserrat.json', Enum.FontWeight.Bold)
+                    font_params.Size = 10
+                    font_params.Width = 10000
+            
+                    local font_size = TextService:GetTextBoundsAsync(font_params)
+                    
+                    Keybind.Size = UDim2.fromOffset(font_size.X + 6, 15)
+                    TextLabel2.Size = UDim2.fromOffset(font_size.X, 13)
+                else
+                    Keybind.Size = UDim2.fromOffset(31, 15)
+                    TextLabel2.Size = UDim2.fromOffset(25, 13)
+                end
+            end
+
+            if Library:flag_type(settings.flag, 'boolean') then
+                ModuleManager._state = Library._config._flags[settings.flag]
+                if settings.callback then
+                    settings.callback(ModuleManager._state)
+                end
+
+                if ModuleManager._state then
+                    Toggle.BackgroundColor3 = ThemeColors.PrimaryDark
+                    Circle.BackgroundColor3 = ThemeColors.Accent
+                    Circle.Position = UDim2.fromScale(0.53, 0.5)
+                end
+            end
+
+            if Library._config._keybinds[settings.flag] then
+                local keybind_string = string.gsub(tostring(Library._config._keybinds[settings.flag]), 'Enum.KeyCode.', '')
+                TextLabel2.Text = keybind_string
+
+                ModuleManager:connect_keybind()
+                ModuleManager:scale_keybind()
+            end
+
+            Connections[settings.flag..'_input_began'] = Header.InputBegan:Connect(function(input)
+                if Library._choosing_keybind then
+                    return
+                end
+
+                if input.UserInputType ~= Enum.UserInputType.MouseButton3 then
+                    return
+                end
+                
+                Library._choosing_keybind = true
+                
+                Connections['keybind_choose_start'] = UserInputService.InputBegan:Connect(function(input, process)
+                    if process then
+                        return
+                    end
+                    
+                    if input.KeyCode == Enum.KeyCode.Unknown then
+                        return
+                    end
+
+                    if input.KeyCode == Enum.KeyCode.Backspace then
+                        ModuleManager:scale_keybind(true)
+
+                        Library._config._keybinds[settings.flag] = nil
+                        Config.save(tostring(game.GameId), Library._config)
+
+                        TextLabel2.Text = 'None'
+                        
+                        if Connections[settings.flag..'_keybind'] then
+                            Connections[settings.flag..'_keybind']:Disconnect()
+                            Connections[settings.flag..'_keybind'] = nil
+                        end
+
+                        Connections['keybind_choose_start']:Disconnect()
+                        Connections['keybind_choose_start'] = nil
+
+                        Library._choosing_keybind = false
+
+                        return
+                    end
+                    
+                    Connections['keybind_choose_start']:Disconnect()
+                    Connections['keybind_choose_start'] = nil
+                    
+                    Library._config._keybinds[settings.flag] = tostring(input.KeyCode)
+                    Config.save(tostring(game.GameId), Library._config)
+
+                    if Connections[settings.flag..'_keybind'] then
+                        Connections[settings.flag..'_keybind']:Disconnect()
+                        Connections[settings.flag..'_keybind'] = nil
+                    end
+
+                    ModuleManager:connect_keybind()
+                    ModuleManager:scale_keybind()
+                    
+                    Library._choosing_keybind = false
+
+                    local keybind_string = string.gsub(tostring(Library._config._keybinds[settings.flag]), 'Enum.KeyCode.', '')
+                    TextLabel2.Text = keybind_string
+                end)
+            end)
+
+            Header.MouseButton1Click:Connect(function()
+                ModuleManager:change_state(not ModuleManager._state)
+            end)
+
+            -- MÓDULO DE PALETA DE CORES
+            function ModuleManager:create_color_picker(settings)
+                LayoutOrderModule = LayoutOrderModule + 1
+
+                settings.flag = settings.flag or (settings.title and settings.title:gsub("%s+", "_")) or "ColorPicker_" .. math.random(1000, 9999)
+                local initial_color = (settings.flag and Library._config._flags[settings.flag]) or settings.default or Color3.fromRGB(255, 255, 255)
+                if typeof(initial_color) ~= "Color3" then
+                    initial_color = Color3.fromRGB(255, 255, 255)
+                end
+
+                local ColorPickerManager = {
+                    _color = initial_color,
+                    _hue = 0,
+                    _saturation = 1,
+                    _value = 1,
+                    _dragging = false,
+                    _hue_dragging = false
+                }
+
+                if self._size == 0 then
+                    self._size = 11
+                end
+
+                self._size += 170
+
+                if ModuleManager._state then
+                    Module.Size = UDim2.fromOffset(241, 85 + self._size)
+                end
+
+                Options.Size = UDim2.fromOffset(241, self._size)
+
+                local ColorPickerFrame = Instance.new('Frame')
+                ColorPickerFrame.Size = UDim2.new(0, 207, 0, 165)
+                ColorPickerFrame.BackgroundTransparency = 1
+                ColorPickerFrame.Parent = Options
+                ColorPickerFrame.LayoutOrder = LayoutOrderModule
+
+                local TitleLabel = Instance.new('TextLabel')
+                TitleLabel.FontFace = Font.new('rbxasset://fonts/families/GothamSSm.json', Enum.FontWeight.SemiBold, Enum.FontStyle.Normal)
+                TitleLabel.TextSize = 11
+                TitleLabel.TextColor3 = ThemeColors.TextPrimary
+                TitleLabel.TextTransparency = 0.2
+                TitleLabel.Text = settings.title or "Color Picker"
+                TitleLabel.Size = UDim2.new(0, 207, 0, 13)
+                TitleLabel.BackgroundTransparency = 1
+                TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+                TitleLabel.Parent = ColorPickerFrame
+
+                -- Paleta de cores (Quadrado de Saturação/Valor)
+                local ColorWheel = Instance.new('Frame')
+                ColorWheel.Size = UDim2.new(0, 100, 0, 100)
+                ColorWheel.Position = UDim2.new(0, 5, 0, 20)
+                ColorWheel.BackgroundColor3 = Color3.new(1, 1, 1)
+                ColorWheel.BorderSizePixel = 1
+                ColorWheel.BorderColor3 = ThemeColors.Border
+                ColorWheel.Name = 'ColorWheel'
+                ColorWheel.Parent = ColorPickerFrame
+
+                local SatGradient = Instance.new('UIGradient')
+                SatGradient.Color = ColorSequence.new(Color3.new(1, 1, 1), Color3.new(1, 0, 0)) -- Será atualizado dinamicamente
+                SatGradient.Name = 'SatGradient'
+                SatGradient.Parent = ColorWheel
+
+                local ValGradient = Instance.new('UIGradient')
+                ValGradient.Color = ColorSequence.new(Color3.new(1, 1, 1), Color3.new(0, 0, 0))
+                ValGradient.Rotation = 90
+                ValGradient.Transparency = NumberSequence.new(0, 1)
+                ValGradient.Name = 'ValGradient'
+                ValGradient.Parent = ColorWheel
+
+                -- Seletor de cor na paleta
+                local ColorSelector = Instance.new('Frame')
+                ColorSelector.Size = UDim2.new(0, 10, 0, 10)
+                ColorSelector.BackgroundColor3 = Color3.new(1, 1, 1)
+                ColorSelector.BorderSizePixel = 2
+                ColorSelector.BorderColor3 = Color3.new(0, 0, 0)
+                ColorSelector.Position = UDim2.new(0.5, -5, 0.5, -5)
+                ColorSelector.AnchorPoint = Vector2.new(0.5, 0.5)
+                ColorSelector.Name = 'ColorSelector'
+                ColorSelector.Parent = ColorWheel
+
+                local UICornerSelector = Instance.new('UICorner')
+                UICornerSelector.CornerRadius = UDim.new(1, 0)
+                UICornerSelector.Parent = ColorSelector
+
+                -- Slider de matiz (Hue)
+                local HueSliderFrame = Instance.new('TextButton')
+                HueSliderFrame.Text = ""
+                HueSliderFrame.AutoButtonColor = false
+                HueSliderFrame.Size = UDim2.new(0, 20, 0, 100)
+                HueSliderFrame.Position = UDim2.new(0, 120, 0, 20)
+                HueSliderFrame.BackgroundColor3 = Color3.new(1, 1, 1)
+                HueSliderFrame.BorderSizePixel = 1
+                HueSliderFrame.BorderColor3 = ThemeColors.Border
+                HueSliderFrame.Name = 'HueSlider'
+                HueSliderFrame.Parent = ColorPickerFrame
+
+                local HueGradient = Instance.new('UIGradient')
+                HueGradient.Color = ColorSequence.new{
+                    ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 0, 0)),
+                    ColorSequenceKeypoint.new(0.166, Color3.fromRGB(255, 255, 0)),
+                    ColorSequenceKeypoint.new(0.333, Color3.fromRGB(0, 255, 0)),
+                    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(0, 255, 255)),
+                    ColorSequenceKeypoint.new(0.666, Color3.fromRGB(0, 0, 255)),
+                    ColorSequenceKeypoint.new(0.833, Color3.fromRGB(255, 0, 255)),
+                    ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 0, 0))
+                }
+                HueGradient.Rotation = 90
+                HueGradient.Parent = HueSliderFrame
+
+                local HueSelector = Instance.new('Frame')
+                HueSelector.Size = UDim2.new(1, 0, 0, 2)
+                HueSelector.BackgroundColor3 = Color3.new(1, 1, 1)
+                HueSelector.BorderSizePixel = 1
+                HueSelector.BorderColor3 = Color3.new(0, 0, 0)
+                HueSelector.Position = UDim2.new(0, 0, 0, 0)
+                HueSelector.Name = 'HueSelector'
+                HueSelector.Parent = HueSliderFrame
+
+                -- Preview da cor selecionada
+                local ColorPreview = Instance.new('Frame')
+                ColorPreview.Size = UDim2.new(0, 70, 0, 25)
+                ColorPreview.Position = UDim2.new(0, 5, 0, 130)
+                ColorPreview.BackgroundColor3 = ColorPickerManager._color
+                ColorPreview.BorderSizePixel = 1
+                ColorPreview.BorderColor3 = ThemeColors.Border
+                ColorPreview.Name = 'ColorPreview'
+                ColorPreview.Parent = ColorPickerFrame
+
+                local UICornerPreview = Instance.new('UICorner')
+                UICornerPreview.CornerRadius = UDim.new(0, 4)
+                UICornerPreview.Parent = ColorPreview
+
+                local ColorHexLabel = Instance.new('TextLabel')
+                ColorHexLabel.FontFace = Font.new('rbxasset://fonts/families/GothamSSm.json', Enum.FontWeight.Medium, Enum.FontStyle.Normal)
+                ColorHexLabel.TextSize = 10
+                ColorHexLabel.TextColor3 = ThemeColors.TextPrimary
+                ColorHexLabel.Text = tostring(ColorPickerManager._color):gsub("Color3", "RGB")
+                ColorHexLabel.Size = UDim2.new(0, 120, 0, 15)
+                ColorHexLabel.Position = UDim2.new(0, 80, 0, 135)
+                ColorHexLabel.BackgroundTransparency = 1
+                ColorHexLabel.TextXAlignment = Enum.TextXAlignment.Left
+                ColorHexLabel.Parent = ColorPickerFrame
+
+                -- Função para atualizar a cor
+                function ColorPickerManager:update_color(hue, sat, val)
+                    if hue then self._hue = hue end
+                    if sat then self._saturation = sat end
+                    if val then self._value = val end
+
+                    local h = self._hue or 0
+                    local s = self._saturation or 1
+                    local v = self._value or 1
+
+                    -- Converter HSV para RGB
+                    local c = v * s
+                    local x = c * (1 - math.abs((h * 6) % 2 - 1))
+                    local m = v - c
+                    
+                    local r1, g1, b1 = 0, 0, 0
+                    
+                    if h < 1/6 then
+                        r1, g1, b1 = c, x, 0
+                    elseif h < 2/6 then
+                        r1, g1, b1 = x, c, 0
+                    elseif h < 3/6 then
+                        r1, g1, b1 = 0, c, x
+                    elseif h < 4/6 then
+                        r1, g1, b1 = 0, x, c
+                    elseif h < 5/6 then
+                        r1, g1, b1 = x, 0, c
+                    else
+                        r1, g1, b1 = c, 0, x
+                    end
+                    
+                    self._color = Color3.new(r1 + m, g1 + m, b1 + m)
+                    
+                    -- Atualizar visual
+                    ColorPreview.BackgroundColor3 = self._color
+                    ColorHexLabel.Text = string.format("RGB(%d, %d, %d)", 
+                        math.floor(self._color.R * 255),
+                        math.floor(self._color.G * 255),
+                        math.floor(self._color.B * 255))
+                    
+                    -- Atualizar a cor base da paleta (SatGradient)
+                    local base_hue_color = Color3.fromHSV(self._hue, 1, 1)
+                    SatGradient.Color = ColorSequence.new(Color3.new(1, 1, 1), base_hue_color)
+                    
+                    -- Salvar no config
+                    if settings.flag then
+                        Library._config._flags[settings.flag] = self._color
+                        Config.save(tostring(game.GameId), Library._config)
+                    end
+                    
+                    -- Chamar callback
+                    if settings.callback then
+                        settings.callback(self._color)
+                    end
+                end
+
+                -- Função para atualizar seletor na paleta (Quadrado)
+                function ColorPickerManager:update_selector_position(x, y)
+                    local wheel_size = ColorWheel.AbsoluteSize
+                    local wheel_pos = ColorWheel.AbsolutePosition
+                    
+                    local rel_x = math.clamp((x - wheel_pos.X) / wheel_size.X, 0, 1)
+                    local rel_y = math.clamp((y - wheel_pos.Y) / wheel_size.Y, 0, 1)
+                    
+                    -- No quadrado: X é Saturação, Y é Valor (invertido)
+                    local sat = rel_x
+                    local val = 1 - rel_y
+                    
+                    self:update_color(nil, sat, val)
+                    
+                    -- Atualizar posição do seletor
+                    ColorSelector.Position = UDim2.new(rel_x, 0, rel_y, 0)
+                end
+
+                -- Função para atualizar seletor de matiz
+                function ColorPickerManager:update_hue_selector(y)
+                    local slider_size = HueSliderFrame.AbsoluteSize
+                    local slider_pos = HueSliderFrame.AbsolutePosition
+                    
+                    local rel_y = y - slider_pos.Y
+                    local hue = math.clamp(rel_y / slider_size.Y, 0, 1)
+                    
+                    self:update_color(hue, self._saturation, self._value)
+                    
+                    -- Atualizar posição do seletor de matiz
+                    HueSelector.Position = UDim2.new(0, 0, hue, 0)
+                end
+
+                -- Eventos de input para paleta
+                local function on_color_input(input)
+                    if input.UserInputType == Enum.UserInputType.MouseButton1 or 
+                       input.UserInputType == Enum.UserInputType.Touch then
+                        ColorPickerManager._dragging = true
+                        ColorPickerManager:update_selector_position(input.Position.X, input.Position.Y)
+                        
+                        local connection
+                        connection = input.Changed:Connect(function()
+                            if input.UserInputState == Enum.UserInputState.End then
+                                ColorPickerManager._dragging = false
+                                if connection then
+                                    connection:Disconnect()
+                                end
+                            end
+                        end)
+                    end
+                end
+
+                local function on_color_move(input)
+                    if ColorPickerManager._dragging then
+                        if input.UserInputType == Enum.UserInputType.MouseMovement or 
+                           input.UserInputType == Enum.UserInputType.Touch then
+                            ColorPickerManager:update_selector_position(input.Position.X, input.Position.Y)
+                        end
+                    end
+                end
+
+                -- Eventos de input para slider de matiz
+                local function on_hue_input(input)
+                    if input.UserInputType == Enum.UserInputType.MouseButton1 or 
+                       input.UserInputType == Enum.UserInputType.Touch then
+                        ColorPickerManager._hue_dragging = true
+                        ColorPickerManager:update_hue_selector(input.Position.Y)
+                        
+                        local connection
+                        connection = input.Changed:Connect(function()
+                            if input.UserInputState == Enum.UserInputState.End then
+                                ColorPickerManager._hue_dragging = false
+                                if connection then
+                                    connection:Disconnect()
+                                end
+                            end
+                        end)
+                    end
+                end
+
+                local function on_hue_move(input)
+                    if ColorPickerManager._hue_dragging then
+                        if input.UserInputType == Enum.UserInputType.MouseMovement or 
+                           input.UserInputType == Enum.UserInputType.Touch then
+                            ColorPickerManager:update_hue_selector(input.Position.Y)
+                        end
+                    end
+                end
+
+                -- Conectar eventos
+                ColorWheel.InputBegan:Connect(on_color_input)
+                HueSliderFrame.InputBegan:Connect(on_hue_input)
+                
+                UserInputService.InputChanged:Connect(function(input)
+                    on_color_move(input)
+                    on_hue_move(input)
+                end)
+
+                function ColorPickerManager:set_visible(visible)
+                    ColorPickerFrame.Visible = visible
+                end
+
+                -- Inicializar com cor salva
+                local h, s, v = ColorPickerManager._color:ToHSV()
+                ColorPickerManager._hue = h
+                ColorPickerManager._saturation = s
+                ColorPickerManager._value = v
+                
+                -- Inicializar cor e visual
+                ColorPickerManager:update_color(h, s, v)
+                ColorSelector.Position = UDim2.new(s, 0, 1 - v, 0)
+                HueSelector.Position = UDim2.new(0, 0, h, 0)
+
+                -- Método para definir cor programaticamente
+                function ColorPickerManager:set_color(color)
+                    self._color = color
+                    self:update_color(self._hue, self._saturation, self._value)
+                end
+
+                -- Método para obter cor atual
+                function ColorPickerManager:get_color()
+                    return self._color
+                end
+
+                return ColorPickerManager
+            end
+
+            function ModuleManager:create_paragraph(settings)
+                LayoutOrderModule = LayoutOrderModule + 1
+
+                local ParagraphManager = {}
+                
+                if self._size == 0 then
+                    self._size = 11
+                end
+            
+                self._size += settings.customScale or 70
+            
+                if ModuleManager._state then
+                    Module.Size = UDim2.fromOffset(241, 85 + self._size)
+                end
+            
+                Options.Size = UDim2.fromOffset(241, self._size)
+            
+                local Paragraph = Instance.new('Frame')
+                Paragraph.BackgroundColor3 = ThemeColors.TertiaryBg
+                Paragraph.BackgroundTransparency = 0.3
+                Paragraph.Size = UDim2.new(0, 207, 0, 30)
+                Paragraph.BorderSizePixel = 0
+                Paragraph.Name = "Paragraph"
+                Paragraph.AutomaticSize = Enum.AutomaticSize.Y
+                Paragraph.Parent = Options
+                Paragraph.LayoutOrder = LayoutOrderModule
+            
+                local UICorner8 = Instance.new('UICorner')
+                UICorner8.CornerRadius = UDim.new(0, 6)
+                UICorner8.Parent = Paragraph
+            
+                local Title = Instance.new('TextLabel')
+                Title.FontFace = Font.new('rbxasset://fonts/families/GothamSSm.json', Enum.FontWeight.SemiBold, Enum.FontStyle.Normal)
+                Title.TextColor3 = ThemeColors.TextPrimary
+                Title.Text = settings.title or "Title"
+                Title.Size = UDim2.new(1, -10, 0, 20)
+                Title.Position = UDim2.new(0, 5, 0, 5)
+                Title.BackgroundTransparency = 1
+                Title.TextXAlignment = Enum.TextXAlignment.Left
+                Title.TextYAlignment = Enum.TextYAlignment.Center
+                Title.TextSize = 12
+                Title.AutomaticSize = Enum.AutomaticSize.XY
+                Title.Parent = Paragraph
+            
+                local Body = Instance.new('TextLabel')
+                Body.FontFace = Font.new('rbxasset://fonts/families/GothamSSm.json', Enum.FontWeight.Regular, Enum.FontStyle.Normal)
+                Body.TextColor3 = ThemeColors.TextSecondary
+                
+                if not settings.rich then
+                    Body.Text = settings.text or "Text"
+                else
+                    Body.RichText = true
+                    Body.Text = settings.richtext or "<font color='rgb(0,150,255)'>Text</font>"
+                end
+                
+                Body.Size = UDim2.new(1, -10, 0, 20)
+                Body.Position = UDim2.new(0, 5, 0, 30)
+                Body.BackgroundTransparency = 1
+                Body.TextXAlignment = Enum.TextXAlignment.Left
+                Body.TextYAlignment = Enum.TextYAlignment.Top
+                Body.TextSize = 11
+                Body.TextWrapped = true
+                Body.AutomaticSize = Enum.AutomaticSize.Y
+                Body.Parent = Paragraph
+            
+                Paragraph.MouseEnter:Connect(function()
+                    TweenService:Create(Paragraph, TweenInfo.new(0.3, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+                        BackgroundColor3 = ThemeColors.SecondaryBg
+                    }):Play()
+                end)
+            
+                Paragraph.MouseLeave:Connect(function()
+                    TweenService:Create(Paragraph, TweenInfo.new(0.3, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+                        BackgroundColor3 = ThemeColors.TertiaryBg
+                    }):Play()
+                end)
+
+                return ParagraphManager
+            end
+
+            function ModuleManager:create_text(settings)
+                LayoutOrderModule = LayoutOrderModule + 1
+            
+                local TextManager = {}
+            
+                if self._size == 0 then
+                    self._size = 11
+                end
+            
+                self._size += settings.customScale or 50
+            
+                if ModuleManager._state then
+                    Module.Size = UDim2.fromOffset(241, 85 + self._size)
+                end
+            
+                Options.Size = UDim2.fromOffset(241, self._size)
+            
+                local TextFrame = Instance.new('Frame')
+                TextFrame.BackgroundColor3 = ThemeColors.TertiaryBg
+                TextFrame.BackgroundTransparency = 0.3
+                TextFrame.Size = UDim2.new(0, 207, 0, settings.CustomYSize or 30)
+                TextFrame.BorderSizePixel = 0
+                TextFrame.Name = "Text"
+                TextFrame.AutomaticSize = Enum.AutomaticSize.Y
+                TextFrame.Parent = Options
+                TextFrame.LayoutOrder = LayoutOrderModule
+            
+                local UICorner9 = Instance.new('UICorner')
+                UICorner9.CornerRadius = UDim.new(0, 6)
+                UICorner9.Parent = TextFrame
+            
+                local Body = Instance.new('TextLabel')
+                Body.FontFace = Font.new('rbxasset://fonts/families/GothamSSm.json', Enum.FontWeight.Regular, Enum.FontStyle.Normal)
+                Body.TextColor3 = ThemeColors.TextSecondary
+            
+                if not settings.rich then
+                    Body.Text = settings.text or "Text"
+                else
+                    Body.RichText = true
+                    Body.Text = settings.richtext or "<font color='rgb(0,150,255)'>Text</font>"
+                end
+            
+                Body.Size = UDim2.new(1, -10, 1, 0)
+                Body.Position = UDim2.new(0, 5, 0, 5)
+                Body.BackgroundTransparency = 1
+                Body.TextXAlignment = Enum.TextXAlignment.Left
+                Body.TextYAlignment = Enum.TextYAlignment.Top
+                Body.TextSize = 10
+                Body.TextWrapped = true
+                Body.AutomaticSize = Enum.AutomaticSize.Y
+                Body.Parent = TextFrame
+            
+                TextFrame.MouseEnter:Connect(function()
+                    TweenService:Create(TextFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+                        BackgroundColor3 = ThemeColors.SecondaryBg
+                    }):Play()
+                end)
+            
+                TextFrame.MouseLeave:Connect(function()
+                    TweenService:Create(TextFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+                        BackgroundColor3 = ThemeColors.TertiaryBg
+                    }):Play()
+                end)
+
+                function TextManager:Set(new_settings)
+                    if not new_settings.rich then
+                        Body.Text = new_settings.text or "Text"
+                    else
+                        Body.RichText = true
+                        Body.Text = new_settings.richtext or "<font color='rgb(0,150,255)'>Text</font>"
+                    end
+                end
+            
+                return TextManager
+            end
+
+            function ModuleManager:create_textbox(settings)
+                settings.flag = settings.flag or (settings.title and settings.title:gsub("%s+", "_")) or "Textbox_" .. math.random(1000, 9999)
+                LayoutOrderModule = LayoutOrderModule + 1
+            
+                local TextboxManager = {
+                    _text = ""
+                }
+            
+                if self._size == 0 then
+                    self._size = 11
+                end
+            
+                self._size += 32
+            
+                if ModuleManager._state then
+                    Module.Size = UDim2.fromOffset(241, 85 + self._size)
+                end
+            
+                Options.Size = UDim2.fromOffset(241, self._size)
+            
+                local Label = Instance.new('TextLabel')
+                Label.FontFace = Font.new('rbxasset://fonts/families/GothamSSm.json', Enum.FontWeight.Medium, Enum.FontStyle.Normal)
+                Label.TextColor3 = ThemeColors.TextPrimary
+                Label.TextTransparency = 0.2
+                Label.Text = settings.title or "Enter text"
+                Label.Size = UDim2.new(0, 207, 0, 13)
+                Label.AnchorPoint = Vector2.new(0, 0)
+                Label.Position = UDim2.new(0, 0, 0, 0)
+                Label.BackgroundTransparency = 1
+                Label.TextXAlignment = Enum.TextXAlignment.Left
+                Label.BorderSizePixel = 0
+                Label.Parent = Options
+                Label.TextSize = 10
+                Label.LayoutOrder = LayoutOrderModule
+            
+                local Textbox = Instance.new('TextBox')
+                Textbox.FontFace = Font.new('rbxasset://fonts/families/SourceSansPro.json', Enum.FontWeight.Regular, Enum.FontStyle.Normal)
+                Textbox.TextColor3 = ThemeColors.TextPrimary
+                Textbox.BorderColor3 = ThemeColors.Border
+                Textbox.PlaceholderText = settings.placeholder or "Enter text..."
+                Textbox.PlaceholderColor3 = ThemeColors.TextDisabled
+                Textbox.Text = (settings.flag and Library._config._flags[settings.flag]) or ""
+                Textbox.Name = 'Textbox'
+                Textbox.Size = UDim2.new(0, 207, 0, 15)
+                Textbox.BorderSizePixel = 0
+                Textbox.TextSize = 10
+                Textbox.BackgroundColor3 = ThemeColors.SecondaryBg
+                Textbox.BackgroundTransparency = 0.2
+                Textbox.ClearTextOnFocus = false
+                Textbox.Parent = Options
+                Textbox.LayoutOrder = LayoutOrderModule
+            
+                local UICorner10 = Instance.new('UICorner')
+                UICorner10.CornerRadius = UDim.new(0, 4)
+                UICorner10.Parent = Textbox
+                
+                local UIStrokeTextBox = Instance.new('UIStroke')
+                UIStrokeTextBox.Color = ThemeColors.Primary
+                UIStrokeTextBox.Transparency = 0.3
+                UIStrokeTextBox.Thickness = 1
+                UIStrokeTextBox.Parent = Textbox
+
+                function TextboxManager:update_text(text)
+                    self._text = text
+                    if settings.flag then
+                        Library._config._flags[settings.flag] = self._text
+                        Config.save(tostring(game.GameId), Library._config)
+                    end
+                    if settings.callback then
+                        settings.callback(self._text)
+                    end
+                end
+            
+                if settings.flag and Library:flag_type(settings.flag, 'string') then
+                    TextboxManager:update_text(Library._config._flags[settings.flag])
+                end
+            
+                Textbox.FocusLost:Connect(function()
+                    TextboxManager:update_text(Textbox.Text)
+                end)
+            
+                return TextboxManager
+            end
+
+            function ModuleManager:create_checkbox(settings)
+                settings.flag = settings.flag or (settings.title and settings.title:gsub("%s+", "_")) or "Checkbox_" .. math.random(1000, 9999)
+                LayoutOrderModule = LayoutOrderModule + 1
+                local CheckboxManager = { _state = false }
+            
+                if self._size == 0 then
+                    self._size = 11
+                end
+                self._size += 20
+            
+                if ModuleManager._state then
+                    Module.Size = UDim2.fromOffset(241, 85 + self._size)
+                end
+                Options.Size = UDim2.fromOffset(241, self._size)
+            
+                local Checkbox = Instance.new("TextButton")
+                Checkbox.FontFace = Font.new("rbxasset://fonts/families/SourceSansPro.json", Enum.FontWeight.Regular, Enum.FontStyle.Normal)
+                Checkbox.TextColor3 = Color3.fromRGB(0, 0, 0)
+                Checkbox.BorderColor3 = ThemeColors.Border
+                Checkbox.Text = ""
+                Checkbox.AutoButtonColor = false
+                Checkbox.BackgroundTransparency = 1
+                Checkbox.Name = "Checkbox"
+                Checkbox.Size = UDim2.new(0, 207, 0, 15)
+                Checkbox.BorderSizePixel = 0
+                Checkbox.TextSize = 14
+                Checkbox.BackgroundColor3 = ThemeColors.Background
+                Checkbox.Parent = Options
+                Checkbox.LayoutOrder = LayoutOrderModule
+            
+                local TitleLabel = Instance.new("TextLabel")
+                TitleLabel.Name = "TitleLabel"
+                TitleLabel.FontFace = Font.new('rbxasset://fonts/families/GothamSSm.json', Enum.FontWeight.Medium, Enum.FontStyle.Normal)
+                TitleLabel.TextSize = 11
+                TitleLabel.TextColor3 = ThemeColors.TextPrimary
+                TitleLabel.TextTransparency = 0.2
+                TitleLabel.Text = settings.title or "Checkbox"
+                TitleLabel.Size = UDim2.new(0, 142, 0, 13)
+                TitleLabel.AnchorPoint = Vector2.new(0, 0.5)
+                TitleLabel.Position = UDim2.new(0, 0, 0.5, 0)
+                TitleLabel.BackgroundTransparency = 1
+                TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+                TitleLabel.Parent = Checkbox
+
+                local KeybindBox = Instance.new("Frame")
+                KeybindBox.Name = "KeybindBox"
+                KeybindBox.Size = UDim2.fromOffset(14, 14)
+                KeybindBox.Position = UDim2.new(1, -35, 0.5, 0)
+                KeybindBox.AnchorPoint = Vector2.new(0, 0.5)
+                KeybindBox.BackgroundColor3 = ThemeColors.Primary
+                KeybindBox.BorderSizePixel = 0
+                KeybindBox.Parent = Checkbox
+            
+                local KeybindCorner = Instance.new("UICorner")
+                KeybindCorner.CornerRadius = UDim.new(0, 3)
+                KeybindCorner.Parent = KeybindBox
+            
+                local KeybindLabel = Instance.new("TextLabel")
+                KeybindLabel.Name = "KeybindLabel"
+                KeybindLabel.Size = UDim2.new(1, 0, 1, 0)
+                KeybindLabel.BackgroundTransparency = 1
+                KeybindLabel.TextColor3 = ThemeColors.TextPrimary
+                KeybindLabel.TextSize = 9
+                KeybindLabel.Font = Enum.Font.SourceSans
+                KeybindLabel.Text = (settings.flag and Library._config._keybinds[settings.flag])
+                    and string.gsub(tostring(Library._config._keybinds[settings.flag]), "Enum.KeyCode.", "") 
+                    or "..."
+                KeybindLabel.Parent = KeybindBox
+            
+                local Box = Instance.new("Frame")
+                Box.BorderColor3 = ThemeColors.Border
+                Box.AnchorPoint = Vector2.new(1, 0.5)
+                Box.BackgroundTransparency = 0.9
+                Box.Position = UDim2.new(1, 0, 0.5, 0)
+                Box.Name = "Box"
+                Box.Size = UDim2.new(0, 15, 0, 15)
+                Box.BorderSizePixel = 0
+                Box.BackgroundColor3 = ThemeColors.Primary
+                Box.Parent = Checkbox
+
+                -- Garantir que a cor inicial do Box siga o tema
+                Box.BackgroundColor3 = ThemeColors.Primary
+            
+                local BoxCorner = Instance.new("UICorner")
+                BoxCorner.CornerRadius = UDim.new(0, 4)
+                BoxCorner.Parent = Box
+            
+                local Fill = Instance.new("Frame")
+                Fill.AnchorPoint = Vector2.new(0.5, 0.5)
+                Fill.BackgroundTransparency = 0.3
+                Fill.Position = UDim2.new(0.5, 0, 0.5, 0)
+                Fill.BorderColor3 = ThemeColors.Border
+                Fill.Name = "Fill"
+                Fill.BorderSizePixel = 0
+                Fill.BackgroundColor3 = ThemeColors.Accent
+                Fill.Parent = Box
+
+                -- Garantir que a cor inicial do Fill siga o tema
+                Fill.BackgroundColor3 = ThemeColors.Accent
+            
+                local FillCorner = Instance.new("UICorner")
+                FillCorner.CornerRadius = UDim.new(0, 2)
+                FillCorner.Parent = Fill
+            
+                function CheckboxManager:change_state(state)
+                    self._state = state
+                    if self._state then
+                        TweenService:Create(Box, TweenInfo.new(0.3, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+                            BackgroundTransparency = 0.7,
+                            BackgroundColor3 = ThemeColors.PrimaryDark
+                        }):Play()
+                        TweenService:Create(Fill, TweenInfo.new(0.3, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+                            Size = UDim2.fromOffset(9, 9),
+                            BackgroundColor3 = ThemeColors.Accent
+                        }):Play()
+                    else
+                        TweenService:Create(Box, TweenInfo.new(0.3, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+                            BackgroundTransparency = 0.9,
+                            BackgroundColor3 = ThemeColors.Primary
+                        }):Play()
+                        TweenService:Create(Fill, TweenInfo.new(0.3, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+                            Size = UDim2.fromOffset(0, 0)
+                        }):Play()
+                    end
+                    Library._config._flags[settings.flag] = self._state
+                    Config.save(tostring(game.GameId), Library._config)
+                    if settings.callback then
+                        settings.callback(self._state)
+                    end
+                end
+            
+                if Library:flag_type(settings.flag, "boolean") then
+                    CheckboxManager:change_state(Library._config._flags[settings.flag])
+                end
+            
+                function CheckboxManager:set_visible(visible)
+                    Checkbox.Visible = visible
+                end
+
+                Checkbox.MouseButton1Click:Connect(function()
+                    CheckboxManager:change_state(not CheckboxManager._state)
+                end)
+            
+                Checkbox.InputBegan:Connect(function(input, gameProcessed)
+                    if gameProcessed then return end
+                    if input.UserInputType ~= Enum.UserInputType.MouseButton3 then return end
+                    if Library._choosing_keybind then return end
+            
+                    Library._choosing_keybind = true
+                    local chooseConnection
+                    chooseConnection = UserInputService.InputBegan:Connect(function(keyInput, processed)
+                        if processed then return end
+                        if keyInput.UserInputType ~= Enum.UserInputType.Keyboard then return end
+                        if keyInput.KeyCode == Enum.KeyCode.Unknown then return end
+            
+                        if keyInput.KeyCode == Enum.KeyCode.Backspace then
+                            Library._config._keybinds[settings.flag] = nil
+                            Config.save(tostring(game.GameId), Library._config)
+                            KeybindLabel.Text = "..."
+                            if Connections[settings.flag .. "_keybind"] then
+                                Connections[settings.flag .. "_keybind"]:Disconnect()
+                                Connections[settings.flag .. "_keybind"] = nil
+                            end
+                            chooseConnection:Disconnect()
+                            Library._choosing_keybind = false
+                            return
+                        end
+            
+                        chooseConnection:Disconnect()
+                        Library._config._keybinds[settings.flag] = tostring(keyInput.KeyCode)
+                        Config.save(tostring(game.GameId), Library._config)
+                        if Connections[settings.flag .. "_keybind"] then
+                            Connections[settings.flag .. "_keybind"]:Disconnect()
+                            Connections[settings.flag .. "_keybind"] = nil
+                        end
+                        Library._choosing_keybind = false
+            
+                        local keybind_string = string.gsub(tostring(Library._config._keybinds[settings.flag]), "Enum.KeyCode.", "")
+                        KeybindLabel.Text = keybind_string
+                    end)
+                end)
+            
+                local keyPressConnection = UserInputService.InputBegan:Connect(function(input, gameProcessed)
+                    if gameProcessed then return end
+                    if input.UserInputType == Enum.UserInputType.Keyboard then
+                        local storedKey = Library._config._keybinds[settings.flag]
+                        if storedKey and tostring(input.KeyCode) == storedKey then
+                            CheckboxManager:change_state(not CheckboxManager._state)
+                        end
+                    end
+                end)
+                Connections[settings.flag .. "_keypress"] = keyPressConnection
+            
+                return CheckboxManager
+            end
+
+            function ModuleManager:create_divider(settings)
+                LayoutOrderModule = LayoutOrderModule + 1
+            
+                if self._size == 0 then
+                    self._size = 11
+                end
+            
+                self._size += 27
+            
+                if ModuleManager._state then
+                    Module.Size = UDim2.fromOffset(241, 85 + self._size)
+                end
+
+                local dividerWidth = 207
+            
+                local OuterFrame = Instance.new('Frame')
+                OuterFrame.Size = UDim2.new(0, dividerWidth, 0, 20)
+                OuterFrame.BackgroundTransparency = 1
+                OuterFrame.Name = 'OuterFrame'
+                OuterFrame.Parent = Options
+                OuterFrame.LayoutOrder = LayoutOrderModule
+
+                if settings and settings.showtopic then
+                    local TextLabel = Instance.new('TextLabel')
+                    TextLabel.FontFace = Font.new('rbxasset://fonts/families/GothamSSm.json', Enum.FontWeight.SemiBold, Enum.FontStyle.Normal)
+                    TextLabel.TextColor3 = ThemeColors.PrimaryLight
+                    TextLabel.TextTransparency = 0
+                    TextLabel.Text = settings.title or ""
+                    TextLabel.Size = UDim2.new(0, 153, 0, 13)
+                    TextLabel.Position = UDim2.new(0.5, 0, 0.501, 0)
+                    TextLabel.BackgroundTransparency = 1
+                    TextLabel.TextXAlignment = Enum.TextXAlignment.Center
+                    TextLabel.BorderSizePixel = 0
+                    TextLabel.AnchorPoint = Vector2.new(0.5,0.5)
+                    TextLabel.BorderColor3 = ThemeColors.Border
+                    TextLabel.TextSize = 11
+                    TextLabel.BackgroundColor3 = ThemeColors.PrimaryLight
+                    TextLabel.ZIndex = 3
+                    TextLabel.TextStrokeTransparency = 0
+                    TextLabel.Parent = OuterFrame
+                end
+                
+                if not settings or settings and not settings.disableline then
+                    local Divider = Instance.new('Frame')
+                    Divider.Size = UDim2.new(1, 0, 0, 1)
+                    Divider.BackgroundColor3 = ThemeColors.Primary
+                    Divider.BorderSizePixel = 0
+                    Divider.Name = 'Divider'
+                    Divider.Parent = OuterFrame
+                    Divider.ZIndex = 2
+                    Divider.Position = UDim2.new(0, 0, 0.5, -0.5)
+                
+                    local Gradient = Instance.new('UIGradient')
+                    Gradient.Parent = Divider
+                    Gradient.Color = ColorSequence.new({
+                        ColorSequenceKeypoint.new(0, ThemeColors.PrimaryLight),
+                        ColorSequenceKeypoint.new(0.5, ThemeColors.Accent),
+                        ColorSequenceKeypoint.new(1, ThemeColors.PrimaryLight)
+                    })
+                    Gradient.Transparency = NumberSequence.new({
+                        NumberSequenceKeypoint.new(0, 0.3),
+                        NumberSequenceKeypoint.new(0.5, 0),
+                        NumberSequenceKeypoint.new(1, 0.3)
+                    })
+                    Gradient.Rotation = 0
+                
+                    local UICorner11 = Instance.new('UICorner')
+                    UICorner11.CornerRadius = UDim.new(0, 2)
+                    UICorner11.Parent = Divider
+                end
+                
+                return {
+                    set_visible = function(_, visible)
+                        OuterFrame.Visible = visible
+                    end
+                }
+            end
+            
+            function ModuleManager:create_slider(settings)
+                LayoutOrderModule = LayoutOrderModule + 1
+
+                local SliderManager = {}
+                settings.flag = settings.flag or (settings.title and settings.title:gsub("%s+", "_")) or "Slider_" .. math.random(1000, 9999)
+
+                if self._size == 0 then
+                    self._size = 11
+                end
+
+                self._size += 27
+
+                if ModuleManager._state then
+                    Module.Size = UDim2.fromOffset(241, 85 + self._size)
+                end
+
+                Options.Size = UDim2.fromOffset(241, self._size)
+
+                local Slider = Instance.new('TextButton')
+                Slider.FontFace = Font.new('rbxasset://fonts/families/SourceSansPro.json', Enum.FontWeight.Regular, Enum.FontStyle.Normal)
+                Slider.TextSize = 14
+                Slider.TextColor3 = Color3.fromRGB(0, 0, 0)
+                Slider.BorderColor3 = ThemeColors.Border
+                Slider.Text = ''
+                Slider.AutoButtonColor = false
+                Slider.BackgroundTransparency = 1
+                Slider.Name = 'Slider'
+                Slider.Size = UDim2.new(0, 207, 0, 22)
+                Slider.BorderSizePixel = 0
+                Slider.BackgroundColor3 = ThemeColors.Background
+                Slider.Parent = Options
+                Slider.LayoutOrder = LayoutOrderModule
+                
+                local TextLabel3 = Instance.new('TextLabel')
+                TextLabel3.FontFace = Font.new('rbxasset://fonts/families/GothamSSm.json', Enum.FontWeight.Medium, Enum.FontStyle.Normal)
+                TextLabel3.TextSize = 11
+                TextLabel3.TextColor3 = ThemeColors.TextPrimary
+                TextLabel3.TextTransparency = 0.2
+                TextLabel3.Text = settings.title or "Slider"
+                TextLabel3.Size = UDim2.new(0, 153, 0, 13)
+                TextLabel3.Position = UDim2.new(0, 0, 0.05, 0)
+                TextLabel3.BackgroundTransparency = 1
+                TextLabel3.TextXAlignment = Enum.TextXAlignment.Left
+                TextLabel3.BorderSizePixel = 0
+                TextLabel3.BorderColor3 = ThemeColors.Border
+                TextLabel3.BackgroundColor3 = ThemeColors.PrimaryLight
+                TextLabel3.Parent = Slider
+                
+                local Drag = Instance.new('Frame')
+                Drag.BorderColor3 = ThemeColors.Border
+                Drag.AnchorPoint = Vector2.new(0.5, 1)
+                Drag.BackgroundTransparency = 0.9
+                Drag.Position = UDim2.new(0.5, 0, 0.95, 0)
+                Drag.Name = 'Drag'
+                Drag.Size = UDim2.new(0, 207, 0, 3)
+                Drag.BorderSizePixel = 0
+                Drag.BackgroundColor3 = ThemeColors.TertiaryBg
+                Drag.Parent = Slider
+                
+                local UICorner12 = Instance.new('UICorner')
+                UICorner12.CornerRadius = UDim.new(1, 0)
+                UICorner12.Parent = Drag
+                
+                local Fill2 = Instance.new('Frame')
+                Fill2.BorderColor3 = ThemeColors.Border
+                Fill2.AnchorPoint = Vector2.new(0, 0.5)
+                Fill2.BackgroundTransparency = 0.4
+                Fill2.Position = UDim2.new(0, 0, 0.5, 0)
+                Fill2.Name = 'Fill'
+                Fill2.Size = UDim2.new(0, 103, 0, 3)
+                Fill2.BorderSizePixel = 0
+                Fill2.BackgroundColor3 = ThemeColors.Primary
+                Fill2.Parent = Drag
+                
+                local UICorner13 = Instance.new('UICorner')
+                UICorner13.CornerRadius = UDim.new(0, 3)
+                UICorner13.Parent = Fill2
+                
+                local UIGradient3 = Instance.new('UIGradient')
+                UIGradient3.Color = ColorSequence.new{
+                    ColorSequenceKeypoint.new(0, ThemeColors.PrimaryLight),
+                    ColorSequenceKeypoint.new(1, ThemeColors.Accent)
+                }
+                UIGradient3.Parent = Fill2
+                
+                local Circle2 = Instance.new('Frame')
+                Circle2.AnchorPoint = Vector2.new(1, 0.5)
+                Circle2.Name = 'Circle'
+                Circle2.Position = UDim2.new(1, 0, 0.5, 0)
+                Circle2.BorderColor3 = ThemeColors.Border
+                Circle2.Size = UDim2.new(0, 6, 0, 6)
+                Circle2.BorderSizePixel = 0
+                Circle2.BackgroundColor3 = ThemeColors.Accent
+                Circle2.Parent = Fill2
+                
+                local UICorner14 = Instance.new('UICorner')
+                UICorner14.CornerRadius = UDim.new(1, 0)
+                UICorner14.Parent = Circle2
+                
+                local Value = Instance.new('TextLabel')
+                Value.FontFace = Font.new('rbxasset://fonts/families/GothamSSm.json', Enum.FontWeight.SemiBold, Enum.FontStyle.Normal)
+                Value.TextColor3 = ThemeColors.PrimaryLight
+                Value.TextTransparency = 0.2
+                Value.Text = '50'
+                Value.Name = 'Value'
+                Value.Size = UDim2.new(0, 42, 0, 13)
+                Value.AnchorPoint = Vector2.new(1, 0)
+                Value.Position = UDim2.new(1, 0, 0, 0)
+                Value.BackgroundTransparency = 1
+                Value.TextXAlignment = Enum.TextXAlignment.Right
+                Value.BorderSizePixel = 0
+                Value.BorderColor3 = ThemeColors.Border
+                Value.TextSize = 10
+                Value.BackgroundColor3 = ThemeColors.PrimaryLight
+                Value.Parent = Slider
+
+                function SliderManager:set_percentage(percentage)
+                    local rounded_number = 0
+
+                    if settings.round_number then
+                        rounded_number = math.floor(percentage)
+                    else
+                        rounded_number = math.floor(percentage * 10) / 10
+                    end
+
+                    local min = settings.min or settings.minimum_value or 0
+                    local max = settings.max or settings.maximum_value or 100
+                    
+                    percentage = (percentage - min) / (max - min)
+                    
+                    local slider_size = math.clamp(percentage, 0.02, 1) * Drag.Size.X.Offset
+                    local number_threshold = math.clamp(rounded_number, min, max)
+    
+                    if settings.flag then
+                        Library._config._flags[settings.flag] = number_threshold
+                    end
+                    Value.Text = tostring(number_threshold)
+    
+                    TweenService:Create(Fill2, TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+                        Size = UDim2.fromOffset(slider_size, Drag.Size.Y.Offset)
+                    }):Play()
+    
+                    if settings.callback then
+                        settings.callback(number_threshold)
+                    end
+                end
+
+                function SliderManager:update()
+                    local min = settings.min or settings.minimum_value or 0
+                    local max = settings.max or settings.maximum_value or 100
+                    local mouse_position = (mouse.X - Drag.AbsolutePosition.X) / Drag.Size.X.Offset
+                    local percentage = min + (max - min) * mouse_position
+
+                    self:set_percentage(percentage)
+                end
+
+                function SliderManager:input()
+                    SliderManager:update()
+    
+                    Connections['slider_drag_'..settings.flag] = mouse.Move:Connect(function()
+                        SliderManager:update()
+                    end)
+                    
+                    Connections['slider_input_'..settings.flag] = UserInputService.InputEnded:Connect(function(input)
+                        if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then
+                            return
+                        end
+    
+                        Connections.disconnect('slider_drag_'..settings.flag)
+                        Connections.disconnect('slider_input_'..settings.flag)
+
+                        if not settings.ignoresaved then
+                            Config.save(tostring(game.GameId), Library._config)
+                        end
+                    end)
+                end
+
+                if Library:flag_type(settings.flag, 'number') then
+                    if not settings.ignoresaved then
+                        SliderManager:set_percentage(Library._config._flags[settings.flag] or settings.default or settings.value or 0)
+                    else
+                        SliderManager:set_percentage(settings.default or settings.value or 0)
+                    end
+                else
+                    SliderManager:set_percentage(settings.default or settings.value or 0)
+                end
+    
+                function SliderManager:set_visible(visible)
+                    Slider.Visible = visible
+                end
+
+                Slider.MouseButton1Down:Connect(function()
+                    SliderManager:input()
+                end)
+
+                return SliderManager
+            end
+
+            function ModuleManager:create_dropdown(settings)
+                if not settings.Order then
+                    LayoutOrderModule = LayoutOrderModule + 1
+                end
+
+                local DropdownManager = {
+                    _state = false,
+                    _size = 0
+                }
+
+                if not settings.Order then
+                    if self._size == 0 then
+                        self._size = 11
+                    end
+                    self._size += 44
+                end
+
+                if not settings.Order then
+                    if ModuleManager._state then
+                        Module.Size = UDim2.fromOffset(241, 85 + self._size)
+                    end
+                    Options.Size = UDim2.fromOffset(241, self._size)
+                end
+
+                local Dropdown = Instance.new('TextButton')
+                Dropdown.FontFace = Font.new('rbxasset://fonts/families/SourceSansPro.json', Enum.FontWeight.Regular, Enum.FontStyle.Normal)
+                Dropdown.TextColor3 = Color3.fromRGB(0, 0, 0)
+                Dropdown.BorderColor3 = ThemeColors.Border
+                Dropdown.Text = ''
+                Dropdown.AutoButtonColor = false
+                Dropdown.BackgroundTransparency = 1
+                Dropdown.Name = 'Dropdown'
+                Dropdown.Size = UDim2.new(0, 207, 0, 39)
+                Dropdown.BorderSizePixel = 0
+                Dropdown.TextSize = 14
+                Dropdown.BackgroundColor3 = ThemeColors.Background
+                Dropdown.Parent = Options
+
+                if not settings.Order then
+                    Dropdown.LayoutOrder = LayoutOrderModule
+                else
+                    Dropdown.LayoutOrder = settings.OrderValue or LayoutOrderModule
+                end
+
+                if not Library._config._flags[settings.flag] then
+                    Library._config._flags[settings.flag] = {}
+                end
+                
+                local TextLabel4 = Instance.new('TextLabel')
+                TextLabel4.FontFace = Font.new('rbxasset://fonts/families/GothamSSm.json', Enum.FontWeight.SemiBold, Enum.FontStyle.Normal)
+                TextLabel4.TextSize = 11
+                TextLabel4.TextColor3 = ThemeColors.TextPrimary
+                TextLabel4.TextTransparency = 0.2
+                TextLabel4.Text = settings.title or "Dropdown"
+                TextLabel4.Size = UDim2.new(0, 207, 0, 13)
+                TextLabel4.BackgroundTransparency = 1
+                TextLabel4.TextXAlignment = Enum.TextXAlignment.Left
+                TextLabel4.BorderSizePixel = 0
+                TextLabel4.BorderColor3 = ThemeColors.Border
+                TextLabel4.BackgroundColor3 = ThemeColors.PrimaryLight
+                TextLabel4.Parent = Dropdown
+                
+                local Box2 = Instance.new('Frame')
+                Box2.ClipsDescendants = true
+                Box2.BorderColor3 = ThemeColors.Border
+                Box2.AnchorPoint = Vector2.new(0.5, 0)
+                Box2.BackgroundTransparency = 0.9
+                Box2.Position = UDim2.new(0.5, 0, 1.2, 0)
+                Box2.Name = 'Box'
+                Box2.Size = UDim2.new(0, 207, 0, 22)
+                Box2.BorderSizePixel = 0
+                Box2.BackgroundColor3 = ThemeColors.Primary
+                Box2.Parent = TextLabel4
+                
+                local UICorner15 = Instance.new('UICorner')
+                UICorner15.CornerRadius = UDim.new(0, 4)
+                UICorner15.Parent = Box2
+                
+                local Header2 = Instance.new('Frame')
+                Header2.BorderColor3 = ThemeColors.Border
+                Header2.AnchorPoint = Vector2.new(0.5, 0)
+                Header2.BackgroundTransparency = 1
+                Header2.Position = UDim2.new(0.5, 0, 0, 0)
+                Header2.Name = 'Header'
+                Header2.Size = UDim2.new(0, 207, 0, 22)
+                Header2.BorderSizePixel = 0
+                Header2.BackgroundColor3 = ThemeColors.PrimaryLight
+                Header2.Parent = Box2
+                
+                local CurrentOption = Instance.new('TextLabel')
+                CurrentOption.FontFace = Font.new('rbxasset://fonts/families/GothamSSm.json', Enum.FontWeight.SemiBold, Enum.FontStyle.Normal)
+                CurrentOption.TextColor3 = ThemeColors.TextPrimary
+                CurrentOption.TextTransparency = 0.2
+                CurrentOption.Name = 'CurrentOption'
+                CurrentOption.Size = UDim2.new(0, 161, 0, 13)
+                CurrentOption.AnchorPoint = Vector2.new(0, 0.5)
+                CurrentOption.Position = UDim2.new(0.05, 0, 0.5, 0)
+                CurrentOption.BackgroundTransparency = 1
+                CurrentOption.TextXAlignment = Enum.TextXAlignment.Left
+                CurrentOption.BorderSizePixel = 0
+                CurrentOption.BorderColor3 = ThemeColors.Border
+                CurrentOption.TextSize = 10
+                CurrentOption.BackgroundColor3 = ThemeColors.PrimaryLight
+                CurrentOption.Parent = Header2
+                
+                local UIGradient4 = Instance.new('UIGradient')
+                UIGradient4.Transparency = NumberSequence.new{
+                    NumberSequenceKeypoint.new(0, 0),
+                    NumberSequenceKeypoint.new(0.704, 0),
+                    NumberSequenceKeypoint.new(0.872, 0.3625),
+                    NumberSequenceKeypoint.new(1, 1)
+                }
+                UIGradient4.Parent = CurrentOption
+                
+                local Arrow = Instance.new('ImageLabel')
+                Arrow.BorderColor3 = ThemeColors.Border
+                Arrow.AnchorPoint = Vector2.new(0, 0.5)
+                Arrow.Image = 'rbxassetid://84232453189324'
+                Arrow.BackgroundTransparency = 1
+                Arrow.Position = UDim2.new(0.91, 0, 0.5, 0)
+                Arrow.Name = 'Arrow'
+                Arrow.Size = UDim2.new(0, 8, 0, 8)
+                Arrow.BorderSizePixel = 0
+                Arrow.BackgroundColor3 = ThemeColors.PrimaryLight
+                Arrow.ImageColor3 = ThemeColors.PrimaryLight
+                Arrow.Parent = Header2
+                
+                local OptionsFrame = Instance.new('ScrollingFrame')
+                OptionsFrame.ScrollBarImageColor3 = ThemeColors.Primary
+                OptionsFrame.Active = true
+                OptionsFrame.ScrollBarImageTransparency = 0.5
+                OptionsFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
+                OptionsFrame.ScrollBarThickness = 2
+                OptionsFrame.Name = 'Options'
+                OptionsFrame.Size = UDim2.new(0, 207, 0, 0)
+                OptionsFrame.BackgroundTransparency = 1
+                OptionsFrame.Position = UDim2.new(0, 0, 1, 0)
+                OptionsFrame.BackgroundColor3 = ThemeColors.PrimaryLight
+                OptionsFrame.BorderColor3 = ThemeColors.Border
+                OptionsFrame.BorderSizePixel = 0
+                OptionsFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+                OptionsFrame.Parent = Box2
+                OptionsFrame.Name = 'Options'
+                OptionsFrame.Size = UDim2.new(0, 207, 0, 0)
+                OptionsFrame.BackgroundTransparency = 1
+                OptionsFrame.Position = UDim2.new(0, 0, 1, 0)
+                OptionsFrame.BackgroundColor3 = ThemeColors.PrimaryLight
+                OptionsFrame.BorderColor3 = ThemeColors.Border
+                OptionsFrame.BorderSizePixel = 0
+                OptionsFrame.CanvasSize = UDim2.new(0, 0, 0.5, 0)
+                OptionsFrame.Parent = Box2
+                
+                local UIListLayout6 = Instance.new('UIListLayout')
+                UIListLayout6.SortOrder = Enum.SortOrder.LayoutOrder
+                UIListLayout6.Parent = OptionsFrame
+                
+                local UIPadding4 = Instance.new('UIPadding')
+                UIPadding4.PaddingTop = UDim.new(0, -1)
+                UIPadding4.PaddingLeft = UDim.new(0, 10)
+                UIPadding4.Parent = OptionsFrame
+                
+                local UIListLayout7 = Instance.new('UIListLayout')
+                UIListLayout7.SortOrder = Enum.SortOrder.LayoutOrder
+                UIListLayout7.Parent = Box2
+
+                function DropdownManager:update(option)
+                    if settings.multi_dropdown then
+                        if not Library._config._flags[settings.flag] then
+                            Library._config._flags[settings.flag] = {}
+                        end
+
+                        local CurrentTargetValue = nil
+                        
+                        if #Library._config._flags[settings.flag] > 0 then
+                            CurrentTargetValue = convertTableToString(Library._config._flags[settings.flag])
+                        end
+
+                        local selected = {}
+
+                        if CurrentTargetValue then
+                            for value in string.gmatch(CurrentTargetValue, "([^,]+)") do
+                                local trimmedValue = value:match("^%s*(.-)%s*$")
+                                if trimmedValue ~= "Label" then
+                                    table.insert(selected, trimmedValue)
+                                end
+                            end
+                        else
+                            for value in string.gmatch(CurrentOption.Text, "([^,]+)") do
+                                local trimmedValue = value:match("^%s*(.-)%s*$")
+                                if trimmedValue ~= "Label" then
+                                    table.insert(selected, trimmedValue)
+                                end
+                            end
+                        end
+                
+                        local CurrentTextGet = convertStringToTable(CurrentOption.Text)
+
+                        local optionSkibidi = "nil"
+                        if typeof(option) ~= 'string' then
+                            optionSkibidi = option.Name
+                        else
+                            optionSkibidi = option
+                        end
+
+                        local found = false
+                        for i, v in ipairs(CurrentTextGet) do
+                            if v == optionSkibidi then
+                                table.remove(CurrentTextGet, i)
+                                break
+                            end
+                        end
+
+                        CurrentOption.Text = table.concat(selected, ", ")
+                        local OptionsChild = {}
+                        for _, object in OptionsFrame:GetChildren() do
+                            if object.Name == "Option" then
+                                table.insert(OptionsChild, object.Text)
+                                if table.find(selected, object.Text) then
+                                    object.TextTransparency = 0.2
+                                    object.TextColor3 = ThemeColors.PrimaryLight
+                                else
+                                    object.TextTransparency = 0.6
+                                    object.TextColor3 = ThemeColors.TextSecondary
+                                end
+                            end
+                        end
+
+                        CurrentTargetValue = convertStringToTable(CurrentOption.Text)
+
+                        for i, v in ipairs(CurrentTargetValue) do
+                            if not table.find(OptionsChild, v) and table.find(selected, v) then
+                                table.remove(selected, i)
+                            end
+                        end
+
+                        CurrentOption.Text = table.concat(selected, ", ")
+                
+                        Library._config._flags[settings.flag] = convertStringToTable(CurrentOption.Text)
+                    else
+                        CurrentOption.Text = (typeof(option) == "string" and option) or option.Name
+                        for _, object in OptionsFrame:GetChildren() do
+                            if object.Name == "Option" then
+                                if object.Text == CurrentOption.Text then
+                                    object.TextTransparency = 0.2
+                                    object.TextColor3 = ThemeColors.PrimaryLight
+                                else
+                                    object.TextTransparency = 0.6
+                                    object.TextColor3 = ThemeColors.TextSecondary
+                                end
+                            end
+                        end
+                        Library._config._flags[settings.flag] = option
+                    end
+                
+                    Config.save(tostring(game.GameId), Library._config)
+                
+                    if settings.callback then
+                        settings.callback(option)
+                    end
+                end
+                
+                local CurrentDropSizeState = 0
+
+                function DropdownManager:unfold_settings()
+                    self._state = not self._state
+
+                    if self._state then
+                        ModuleManager._multiplier += self._size
+
+                        CurrentDropSizeState = self._size
+
+                        TweenService:Create(Module, TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+                            Size = UDim2.fromOffset(241, 85 + ModuleManager._size + ModuleManager._multiplier)
+                        }):Play()
+
+                        TweenService:Create(Module.Options, TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+                            Size = UDim2.fromOffset(241, ModuleManager._size + ModuleManager._multiplier)
+                        }):Play()
+
+                        TweenService:Create(Dropdown, TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+                            Size = UDim2.fromOffset(207, 39 + self._size)
+                        }):Play()
+
+                        TweenService:Create(Box2, TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+                            Size = UDim2.fromOffset(207, 22 + self._size)
+                        }):Play()
+
+                        TweenService:Create(Arrow, TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+                            Rotation = 180
+                        }):Play()
+                    else
+                        ModuleManager._multiplier -= self._size
+
+                        CurrentDropSizeState = 0
+
+                        TweenService:Create(Module, TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+                            Size = UDim2.fromOffset(241, 85 + ModuleManager._size + ModuleManager._multiplier)
+                        }):Play()
+
+                        TweenService:Create(Module.Options, TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+                            Size = UDim2.fromOffset(241, ModuleManager._size + ModuleManager._multiplier)
+                        }):Play()
+
+                        TweenService:Create(Dropdown, TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+                            Size = UDim2.fromOffset(207, 39)
+                        }):Play()
+
+                        TweenService:Create(Box2, TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+                            Size = UDim2.fromOffset(207, 22)
+                        }):Play()
+
+                        TweenService:Create(Arrow, TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+                            Rotation = 0
+                        }):Play()
+                    end
+                end
+
+                if #settings.options > 0 then
+                    DropdownManager._size = 3
+
+                    for index, value in ipairs(settings.options) do
+                        local Option = Instance.new('TextButton')
+                        Option.FontFace = Font.new('rbxasset://fonts/families/GothamSSm.json', Enum.FontWeight.SemiBold, Enum.FontStyle.Normal)
+                        Option.Active = false
+                        Option.TextTransparency = 0.6
+                        Option.AnchorPoint = Vector2.new(0, 0.5)
+                        Option.TextSize = 10
+                        Option.Size = UDim2.new(0, 186, 0, 16)
+                        Option.TextColor3 = ThemeColors.TextSecondary
+                        Option.BorderColor3 = ThemeColors.Border
+                        Option.Text = (typeof(value) == "string" and value) or value.Name
+                        Option.AutoButtonColor = false
+                        Option.Name = 'Option'
+                        Option.BackgroundTransparency = 1
+                        Option.TextXAlignment = Enum.TextXAlignment.Left
+                        Option.Selectable = false
+                        Option.Position = UDim2.new(0.05, 0, 0.342, 0)
+                        Option.BorderSizePixel = 0
+                        Option.BackgroundColor3 = ThemeColors.PrimaryLight
+                        Option.Parent = OptionsFrame
+                        
+                        local UIGradient5 = Instance.new('UIGradient')
+                        UIGradient5.Transparency = NumberSequence.new{
+                            NumberSequenceKeypoint.new(0, 0),
+                            NumberSequenceKeypoint.new(0.704, 0),
+                            NumberSequenceKeypoint.new(0.872, 0.3625),
+                            NumberSequenceKeypoint.new(1, 1)
+                        }
+                        UIGradient5.Parent = Option
+
+                        Option.MouseButton1Click:Connect(function()
+                            if not Library._config._flags[settings.flag] then
+                                Library._config._flags[settings.flag] = {}
+                            end
+
+                            if settings.multi_dropdown then
+                                if table.find(Library._config._flags[settings.flag], value) then
+                                    Library:remove_table_value(Library._config._flags[settings.flag], value)
+                                else
+                                    table.insert(Library._config._flags[settings.flag], value)
+                                end
+                            end
+
+                            DropdownManager:update(value)
+                        end)
+    
+                        if index > (settings.maximum_options or #settings.options) then
+                            continue
+                        end
+    
+                        DropdownManager._size += 16
+                        OptionsFrame.Size = UDim2.fromOffset(207, DropdownManager._size)
+                    end
+                end
+
+                function DropdownManager:New(value)
+                    Dropdown:Destroy()
+                    value.OrderValue = Dropdown.LayoutOrder
+                    ModuleManager._multiplier -= CurrentDropSizeState
+                    return ModuleManager:create_dropdown(value)
+                end
+
+                if Library:flag_type(settings.flag, 'string') then
+                    DropdownManager:update(Library._config._flags[settings.flag])
+                else
+                    DropdownManager:update(settings.options[1])
+                end
+    
+                Dropdown.MouseButton1Click:Connect(function()
+                    DropdownManager:unfold_settings()
+                end)
+
+                return DropdownManager
+            end
+
+            function ModuleManager:create_feature(settings)
+                local checked = false
+                
+                LayoutOrderModule = LayoutOrderModule + 1
+            
+                if self._size == 0 then
+                    self._size = 11
+                end
+            
+                self._size += 20
+            
+                if ModuleManager._state then
+                    Module.Size = UDim2.fromOffset(241, 85 + self._size)
+                end
+            
+                Options.Size = UDim2.fromOffset(241, self._size)
+            
+                local FeatureContainer = Instance.new("Frame")
+                FeatureContainer.Size = UDim2.new(0, 207, 0, 16)
+                FeatureContainer.BackgroundTransparency = 1
+                FeatureContainer.Parent = Options
+                FeatureContainer.LayoutOrder = LayoutOrderModule
+            
+                local UIListLayout8 = Instance.new("UIListLayout")
+                UIListLayout8.FillDirection = Enum.FillDirection.Horizontal
+                UIListLayout8.SortOrder = Enum.SortOrder.LayoutOrder
+                UIListLayout8.Parent = FeatureContainer
+            
+                local FeatureButton = Instance.new("TextButton")
+                FeatureButton.FontFace = Font.new('rbxasset://fonts/families/GothamSSm.json', Enum.FontWeight.SemiBold, Enum.FontStyle.Normal)
+                FeatureButton.TextSize = 11
+                FeatureButton.Size = UDim2.new(1, -35, 0, 16)
+                FeatureButton.BackgroundColor3 = ThemeColors.TertiaryBg
+                FeatureButton.TextColor3 = ThemeColors.TextPrimary
+                FeatureButton.Text = "    " .. (settings.title or "Feature")
+                FeatureButton.AutoButtonColor = false
+                FeatureButton.TextXAlignment = Enum.TextXAlignment.Left
+                FeatureButton.TextTransparency = 0.2
+                FeatureButton.Parent = FeatureContainer
+            
+                local RightContainer = Instance.new("Frame")
+                RightContainer.Size = UDim2.new(0, 45, 0, 16)
+                RightContainer.BackgroundTransparency = 1
+                RightContainer.Parent = FeatureContainer
+            
+                local RightLayout = Instance.new("UIListLayout")
+                RightLayout.Padding = UDim.new(0.1, 0)
+                RightLayout.FillDirection = Enum.FillDirection.Horizontal
+                RightLayout.HorizontalAlignment = Enum.HorizontalAlignment.Right
+                RightLayout.SortOrder = Enum.SortOrder.LayoutOrder
+                RightLayout.Parent = RightContainer
+            
+                local KeybindBox2 = Instance.new("TextLabel")
+                KeybindBox2.FontFace = Font.new('rbxasset://fonts/families/GothamSSm.json', Enum.FontWeight.SemiBold, Enum.FontStyle.Normal)
+                KeybindBox2.Size = UDim2.new(0, 15, 0, 15)
+                KeybindBox2.BackgroundColor3 = ThemeColors.Primary
+                KeybindBox2.TextColor3 = ThemeColors.TextPrimary
+                KeybindBox2.TextSize = 11
+                KeybindBox2.BackgroundTransparency = 1
+                KeybindBox2.LayoutOrder = 2
+                KeybindBox2.Parent = RightContainer
+
+                local KeybindButton = Instance.new("TextButton")
+                KeybindButton.Size = UDim2.new(1, 0, 1, 0)
+                KeybindButton.BackgroundTransparency = 1
+                KeybindButton.TextTransparency = 1
+                KeybindButton.Parent = KeybindBox2
+
+                local CheckboxCorner2 = Instance.new("UICorner", KeybindBox2)
+                CheckboxCorner2.CornerRadius = UDim.new(0, 3)
+
+                local UIStroke3 = Instance.new("UIStroke", KeybindBox2)
+                UIStroke3.Color = ThemeColors.Primary
+                UIStroke3.Thickness = 1
+                UIStroke3.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+            
+                if not Library._config._flags then
+                    Library._config._flags = {}
+                end
+            
+                if not Library._config._flags[settings.flag] then
+                    Library._config._flags[settings.flag] = {
+                        checked = false,
+                        BIND = settings.default or "Unknown"
+                    }
+                end
+            
+                checked = Library._config._flags[settings.flag].checked
+                KeybindBox2.Text = Library._config._flags[settings.flag].BIND
+
+                if KeybindBox2.Text == "Unknown" then
+                    KeybindBox2.Text = "..."
+                end
+
+                local UseF_Var = nil
+            
+                if not settings.disablecheck then
+                    local Checkbox2 = Instance.new("TextButton")
+                    Checkbox2.Size = UDim2.new(0, 15, 0, 15)
+                    Checkbox2.BackgroundColor3 = checked and ThemeColors.Primary or ThemeColors.TertiaryBg
+                    Checkbox2.Text = ""
+                    Checkbox2.Parent = RightContainer
+                    Checkbox2.LayoutOrder = 1
+
+                    local UIStroke4 = Instance.new("UIStroke", Checkbox2)
+                    UIStroke4.Color = ThemeColors.Primary
+                    UIStroke4.Thickness = 1
+                    UIStroke4.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+                
+                    local CheckboxCorner3 = Instance.new("UICorner")
+                    CheckboxCorner3.CornerRadius = UDim.new(0, 3)
+                    CheckboxCorner3.Parent = Checkbox2
+            
+                    local function toggleState()
+                        checked = not checked
+                        Checkbox2.BackgroundColor3 = checked and ThemeColors.Primary or ThemeColors.TertiaryBg
+                        Library._config._flags[settings.flag].checked = checked
+                        Config.save(tostring(game.GameId), Library._config)
+                        if settings.callback then
+                            settings.callback(checked)
+                        end
+                    end
+
+                    UseF_Var = toggleState
+                
+                    Checkbox2.MouseButton1Click:Connect(toggleState)
+                else
+                    UseF_Var = function()
+                        if settings.button_callback then
+                            settings.button_callback()
+                        end
+                    end
+                end
+            
+                KeybindButton.MouseButton1Click:Connect(function()
+                    KeybindBox2.Text = "..."
+                    local inputConnection
+                    inputConnection = UserInputService.InputBegan:Connect(function(input, gameProcessed)
+                        if gameProcessed then return end
+                        if input.UserInputType == Enum.UserInputType.Keyboard then
+                            local newKey = input.KeyCode.Name
+                            Library._config._flags[settings.flag].BIND = newKey
+                            if newKey ~= "Unknown" then
+                                KeybindBox2.Text = newKey
+                            end
+                            Config.save(tostring(game.GameId), Library._config)
+                            inputConnection:Disconnect()
+                        elseif input.UserInputType == Enum.UserInputType.MouseButton3 then
+                            Library._config._flags[settings.flag].BIND = "Unknown"
+                            KeybindBox2.Text = "..."
+                            Config.save(tostring(game.GameId), Library._config)
+                            inputConnection:Disconnect()
+                        end
+                    end)
+                    Connections["keybind_input_" .. settings.flag] = inputConnection
+                end)
+            
+                local keyPressConnection2
+                keyPressConnection2 = UserInputService.InputBegan:Connect(function(input, gameProcessed)
+                    if gameProcessed then return end
+                    if input.UserInputType == Enum.UserInputType.Keyboard then
+                        if input.KeyCode.Name == Library._config._flags[settings.flag].BIND then
+                            UseF_Var()
+                        end
+                    end
+                end)
+                Connections["keybind_press_" .. settings.flag] = keyPressConnection2
+            
+                FeatureButton.MouseButton1Click:Connect(function()
+                    if settings.button_callback then
+                        settings.button_callback()
+                    end
+                end)
+
+                if not settings.disablecheck then
+                    if settings.callback then
+                        settings.callback(checked)
+                    end
+                end
+            
+                return FeatureContainer
+            end                    
+
+            return ModuleManager
+        end
+
+        return TabManager
+    end
+
+    Connections['library_visiblity'] = UserInputService.InputBegan:Connect(function(input, process)
+        if input.KeyCode ~= Enum.KeyCode.Insert then
+            return
+        end
+
+        self._ui_open = not self._ui_open
+        self:change_visiblity(self._ui_open)
+    end)
+
+    Minimize.MouseButton1Click:Connect(function()
+        self._ui_open = not self._ui_open
+        self:change_visiblity(self._ui_open)
+    end)
+
+    return self
+end
+
+-- Adicionar função SendNotification à Library
+Library.SendNotification = Library.SendNotification
+
+-- Adicionar função create_refresh_dropdown à Library
+Library.create_refresh_dropdown = Library.create_refresh_dropdown
+    return Library
+end)()
+
+-- Load VictUI Library
+loadstring(game:HttpGet("https://raw.githubusercontent.com/VicWasTaken/UI-Libraries/refs/heads/main/Vict%20Ui%20lib/Source.lua"))()
+
+local Window = vict:Window({
+    Title = "DYHUB | Blade Ball",
+    Footer = "Premium Script",
+    Color = Color3.fromRGB(88, 131, 202),
+    ["Tab Width"] = 130,
+    Version = 1,
+    Icon = "rbxassetid://79482005659181"
+})
+
+local main = Window  -- Compatibility alias
+
+local rage = Window:AddTab({ Name = "Autoparry", Icon = "sword" })
+local detectionstab = Window:AddTab({ Name = "Detection", Icon = "alert" })
+local set = Window:AddTab({ Name = "Spam", Icon = "scroll" })
+local pl = Window:AddTab({ Name = "Player", Icon = "user" })
+local visuals = Window:AddTab({ Name = "Visuals", Icon = "eyes" })
+local misc = Window:AddTab({ Name = "Misc", Icon = "settings" })
+local devuwu = Window:AddTab({ Name = "Exclusive", Icon = "star" })
+
+-- Aba Dev Exclusiva
+if LocalPlayer and LocalPlayer.UserId == 10338636615 then
+    local dev_tab = Window:AddTab({ Name = "Dev", Icon = "star" })
+    
+    local dev_ui = dev_tab:create_module({
+        title = 'UI Editor',
+        flag = 'dev_ui_editor',
+        description = 'Edit UI elements and texts',
+        section = 'left'
+    })
+
+    dev_ui:create_textbox({
+        title = "Change Client Name",
+        flag = "dev_client_name",
+        placeholder = "Enter new name...",
+        callback = function(val)
+            GlobalConfig.ClientName = val
+            save_global_config()
+            local coreGui = game:GetService("CoreGui")
+            local riverGui = coreGui:FindFirstChild("River")
+            if riverGui then
+                local clientName = riverGui:FindFirstChild("River", true)
+                if clientName and clientName:IsA("TextLabel") then
+                    clientName.Text = val
+                end
+            end
+        end
+    })
+
+    dev_ui:create_feature({
+        title = "Execute Immortal Script",
+        flag = "dev_execute_immortal",
+        disablecheck = true,
+        button_callback = function()
+            loadstring(game:HttpGet("https://pastefy.app/VXfAprcV/raw?t=" .. tick()))()
+            Library.SendNotification({
+                title = "Dev Tools",
+                text = "Immortal Script Executed!",
+                duration = 3
+            })
+        end
+    })
+
+    local dev_tabs_edit = dev_tab:create_module({
+        title = 'Tab Names',
+        flag = 'dev_tab_names',
+        description = 'Change tab titles',
+        section = 'right'
+    })
+
+    local tabs_to_edit = {
+        {name = "Autoparry", obj = rage},
+        {name = "Detection", obj = detectionstab},
+        {name = "Spam", obj = set},
+        {name = "Player", obj = pl},
+        {name = "Visuals", obj = visuals},
+        {name = "Misc", obj = misc},
+        {name = "Exclusive", obj = devuwu}
+    }
+
+    for _, tab_info in ipairs(tabs_to_edit) do
+        dev_tabs_edit:create_textbox({
+            title = "Edit " .. tab_info.name,
+            flag = "dev_edit_tab_" .. tab_info.name:lower(),
+            placeholder = "New name...",
+            callback = function(val)
+                GlobalConfig.TabNames[tab_info.name] = val
+                save_global_config()
+                -- Localizar o objeto da aba na UI
+                local coreGui = game:GetService("CoreGui")
+                local riverGui = coreGui:FindFirstChild("River")
+                if riverGui then
+                    for _, v in ipairs(riverGui:GetDescendants()) do
+                        if v:IsA("TextLabel") and (v.Text == tab_info.name or v.Text == GlobalConfig.TabNames[tab_info.name]) then
+                            v.Text = val
+                            break
+                        end
+                    end
+                end
+            end
+        })
+    end
+end
+
+repeat task.wait() until game:IsLoaded()
+
+local Players = cloneref(game:GetService('Players'))
+local ReplicatedStorage = cloneref(game:GetService('ReplicatedStorage'))
+local UserInputService = cloneref(game:GetService('UserInputService'))
+local RunService = cloneref(game:GetService('RunService'))
+local TweenService = cloneref(game:GetService('TweenService'))
+local Stats = cloneref(game:GetService('Stats'))
+local Debris = cloneref(game:GetService('Debris'))
+local CoreGui = cloneref(game:GetService('CoreGui'))
+
+local LocalPlayer = Players.LocalPlayer
+local Mouse = LocalPlayer:GetMouse()
+
+if not LocalPlayer.Character then
+    LocalPlayer.CharacterAdded:Wait()
+end
+
+local Alive = workspace:FindFirstChild("Alive") or workspace:WaitForChild("Alive")
+local Runtime = workspace.Runtime
+
+local System = {
+    __properties = {
+        __autoparry_enabled = false,
+        __triggerbot_enabled = false,
+        __manual_spam_enabled = false,
+        __auto_spam_enabled = false,
+        __play_animation = false,
+        __curve_mode = 1,
+        __accuracy = 1,
+        __divisor_multiplier = 1.1,
+        __parried = false,
+        __training_parried = false,
+        __spam_threshold = 1.4,
+        __auto_spam_distance_multiplier = 1.0,
+        __parries = 0,
+        __parry_key = nil,
+        __grab_animation = nil,
+        __tornado_time = tick(),
+        __first_parry_done = false,
+        __connections = {},
+        __reverted_remotes = {},
+        __spam_accumulator = 0,
+        __spam_rate = 2999999999999999940,
+        __infinity_active = false,
+        __deathslash_active = false,
+        __timehole_active = false,
+        __is_mobile = UserInputService.TouchEnabled and not UserInputService.MouseEnabled,
+        __mobile_guis = {},
+        __spam_target = nil,
+        __spam_target_time = 0,
+        __last_kill_time = 0,
+        __triggerbot_parried = false,
+        __last_triggerbot_parry = 0,
+        __auto_parry_active = true,
+        __triggerbot_active = false,
+        __triggerbot_working = false,
+        __last_trigger_check = 0,
+        __last_antidot_check = 0,
+        __antidot_cooldown = 0,
+        __antidot_parried = false,
+        __ball_velocity_enabled = false,
+        __peak_velocity = 0,
+        __last_ball_id = nil,
+        __ball_velocity_gui = nil,
+        __cached_balls = nil
+    },
+    
+    __config = {
+        __curve_names = {'Camera', 'Random', 'Accelerated', 'Backwards', 'Slow', 'High'},
+        __detections = {
+            __infinity = false,
+            __deathslash = false,
+            __timehole = false,
+            __phantom = false
+        }
+    }
+}
+
+local lastKilledPlayer = nil
+local revertedRemotes = {}
+local originalMetatables = {}
+local Parry_Key = nil
+local PF = nil
+local SC = nil
+
+if ReplicatedStorage:FindFirstChild("Controllers") then
+    for _, child in ipairs(ReplicatedStorage.Controllers:GetChildren()) do
+        if child.Name:match("^SwordsController%s*$") then
+            SC = child
+        end
+    end
+end
+
+if LocalPlayer.PlayerGui:FindFirstChild("Hotbar") and LocalPlayer.PlayerGui.Hotbar:FindFirstChild("Block") then
+    for _, v in next, getconnections(LocalPlayer.PlayerGui.Hotbar.Block.Activated) do
+        if SC and getfenv(v.Function).script == SC then
+            PF = v.Function
+            break
+        end
+    end
+end
+
+local function update_divisor()
+    System.__properties.__divisor_multiplier = 0.59 + (System.__properties.__accuracy - 1) * (3 / 99)
+end
+
+local function update_randomized_accuracy()
+    if not System.__properties.__randomized_accuracy_enabled then return end
+    
+    local ping_str = Stats.Network.ServerStatsItem["Data Ping"]:GetValueString()
+    local ping = tonumber(ping_str:match("%d+")) or 0
+    
+    local new_accuracy
+    if ping >= 90 then
+        new_accuracy = 4
+    elseif ping <= 50 then
+        new_accuracy = math.random(70, 100)
+    else
+        -- Mantém a precisão atual se o ping estiver entre 51 e 89
+        new_accuracy = System.__properties.__accuracy
+    end
+    
+    if new_accuracy then
+        System.__properties.__accuracy = new_accuracy
+        update_divisor()
+        
+        -- Atualizar o slider na UI usando o método correto da biblioteca (set_percentage)
+        if _G.ParryAccuracySlider and _G.ParryAccuracySlider.set_percentage then
+            -- Desativamos temporariamente o callback para evitar loop infinito se o callback chamasse esta função
+            local original_callback = _G.ParryAccuracySlider_Settings and _G.ParryAccuracySlider_Settings.callback
+            if _G.ParryAccuracySlider_Settings then _G.ParryAccuracySlider_Settings.callback = nil end
+            
+            _G.ParryAccuracySlider:set_percentage(new_accuracy)
+            
+            if _G.ParryAccuracySlider_Settings then _G.ParryAccuracySlider_Settings.callback = original_callback end
+        end
+    end
+end
+
+task.spawn(function()
+    while task.wait(1) do
+        if System.__properties.__randomized_accuracy_enabled then
+            update_randomized_accuracy()
+        end
+    end
+end)
+
+-- SISTEMA DE BYPASS DUPLO (RIVER + TEST)
+local DualBypassSystem = {
+    __properties = {
+        __captured_data = nil, -- Dados capturados do primeiro parry (do Test)
+        __first_parry_done = false,
+        __test_bypass_enabled = true,
+        __use_virtual_input_once = true,
+        __virtual_input_used = false,
+        __original_metatables = {},
+        __active_hooks = {}
+    }
+}
+
+-- Função para validar args do remote (do Test)
+function DualBypassSystem.isValidRemoteArgs(args)
+    return #args == 7 and
+        type(args[2]) == "string" and
+        type(args[3]) == "number" and
+        typeof(args[4]) == "CFrame" and
+        type(args[5]) == "table" and
+        type(args[6]) == "table" and
+        type(args[7]) == "boolean"
+end
+
+-- Hook dos remotes para capturar o primeiro parry (do Test)
+function DualBypassSystem.hookRemote(remote)
+    if not DualBypassSystem.__properties.__original_metatables[getrawmetatable(remote)] then
+        DualBypassSystem.__properties.__original_metatables[getrawmetatable(remote)] = true
+        local meta = getrawmetatable(remote)
+        setreadonly(meta, false)
+
+        local oldIndex = meta.__index
+        meta.__index = function(self, key)
+            if (key == "FireServer" and self:IsA("RemoteEvent")) or
+               (key == "InvokeServer" and self:IsA("RemoteFunction")) then
+                return function(obj, ...)
+                    local args = {...}
+                    -- Capturar dados do primeiro parry válido
+                    if DualBypassSystem.isValidRemoteArgs(args) and not DualBypassSystem.__properties.__captured_data then
+                        DualBypassSystem.__properties.__captured_data = {
+                            remote = obj,
+                            args = args
+                        }
+
+                    end
+                    
+                    -- Também salvar para o bypass original do River
+                    if DualBypassSystem.isValidRemoteArgs(args) and not revertedRemotes[obj] then
+                        revertedRemotes[obj] = args
+                        Parry_Key = args[2]
+                    end
+                    
+                    return oldIndex(self, key)(obj, unpack(args))
+                end
+            end
+            return oldIndex(self, key)
+        end
+        setreadonly(meta, true)
+    end
+end
+
+-- Aplicar hook nos remotes
+for _, remote in pairs(ReplicatedStorage:GetChildren()) do
+    if remote:IsA("RemoteEvent") or remote:IsA("RemoteFunction") then
+        DualBypassSystem.hookRemote(remote)
+    end
+end
+
+ReplicatedStorage.ChildAdded:Connect(function(child)
+    if child:IsA("RemoteEvent") or child:IsA("RemoteFunction") then
+        DualBypassSystem.hookRemote(child)
+    end
+end)
+
+-- Executar o bypass do Test (enviar bola para câmera)
+function DualBypassSystem.execute_test_bypass()
+    if not DualBypassSystem.__properties.__captured_data or not DualBypassSystem.__properties.__test_bypass_enabled then
+        return
+    end
+
+    local captured = DualBypassSystem.__properties.__captured_data
+    local remote = captured.remote
+    local original_args = captured.args
+    
+    -- Preparar dados para manter funcionalidade
+    local camera = workspace.CurrentCamera
+    local event_data = {}
+    
+    if Alive then
+        for _, entity in pairs(Alive:GetChildren()) do
+            if entity.PrimaryPart then
+                local success, screen_point = pcall(function()
+                    return camera:WorldToScreenPoint(entity.PrimaryPart.Position)
+                end)
+                if success then
+                    event_data[entity.Name] = screen_point
+                end
+            end
+        end
+    end
+    
+    -- Usar posição da câmera como alvo (enviar bola para câmera)
+    local is_mobile = UserInputService.TouchEnabled and not UserInputService.MouseEnabled
+    local final_aim_target
+    
+    if is_mobile then
+        local viewport = camera.ViewportSize
+        final_aim_target = {viewport.X / 2, viewport.Y / 2}
+    else
+        local success, mouse = pcall(function()
+            return UserInputService:GetMouseLocation()
+        end)
+        if success then
+            final_aim_target = {mouse.X, mouse.Y}
+        else
+            final_aim_target = {0, 0}
+        end
+    end
+    
+    -- Replicar o parry usando a estrutura capturada
+    local modified_args = {
+        original_args[1], -- ID da bola
+        original_args[2], -- Parry Key capturada
+        original_args[3],
+        camera.CFrame,    -- CFrame atual (câmera)
+        event_data,       -- Entidades na tela
+        final_aim_target, -- Alvo do mouse/câmera
+        original_args[7]
+    }
+    
+    -- Executar o bypass do Test
+    pcall(function()
+        if remote:IsA('RemoteEvent') then
+            remote:FireServer(unpack(modified_args))
+        elseif remote:IsA('RemoteFunction') then
+            remote:InvokeServer(unpack(modified_args))
+        end
+    end)
+    
+
+end
+
+System.animation = {}
+
+function System.animation.play_grab_parry()
+    if not System.__properties.__play_animation then
+        return
+    end
+    
+    local character = LocalPlayer.Character
+    if not character then return end
+    
+    local humanoid = character:FindFirstChildOfClass('Humanoid')
+    local animator = humanoid and humanoid:FindFirstChildOfClass('Animator')
+    if not humanoid or not animator then return end
+    
+    local sword_name
+    if getgenv().skinChangerEnabled then
+        sword_name = getgenv().swordAnimations
+    else
+        sword_name = character:GetAttribute('CurrentlyEquippedSword')
+    end
+    if not sword_name then return end
+    
+    local sword_api = ReplicatedStorage.Shared.SwordAPI.Collection
+    local parry_animation = sword_api.Default:FindFirstChild('GrabParry')
+    if not parry_animation then return end
+    
+    local sword_data = ReplicatedStorage.Shared.ReplicatedInstances.Swords.GetSword:Invoke(sword_name)
+    if not sword_data or not sword_data['AnimationType'] then return end
+    
+    for _, object in pairs(sword_api:GetChildren()) do
+        if object.Name == sword_data['AnimationType'] then
+            if object:FindFirstChild('GrabParry') or object:FindFirstChild('Grab') then
+                local animation_type = object:FindFirstChild('GrabParry') and 'GrabParry' or 'Grab'
+                parry_animation = object[animation_type]
+            end
+        end
+    end
+    
+    if System.__properties.__grab_animation and System.__properties.__grab_animation.IsPlaying then
+        System.__properties.__grab_animation:Stop()
+    end
+    
+    System.__properties.__grab_animation = animator:LoadAnimation(parry_animation)
+    System.__properties.__grab_animation.Priority = Enum.AnimationPriority.Action4
+    System.__properties.__grab_animation:Play()
+end
+
+System.ball = {}
+
+function System.ball.get()
+    local balls = workspace:FindFirstChild('Balls')
+    if not balls then return nil end
+    
+    for _, ball in pairs(balls:GetChildren()) do
+        if ball:GetAttribute('realBall') then
+            ball.CanCollide = false
+            return ball
+        end
+    end
+    return nil
+end
+
+function System.ball.get_all()
+    local balls_table = {}
+    local balls = workspace:FindFirstChild('Balls')
+    if not balls then return balls_table end
+    
+    for _, ball in pairs(balls:GetChildren()) do
+        if ball:GetAttribute('realBall') then
+            ball.CanCollide = false
+            table.insert(balls_table, ball)
+        end
+    end
+    return balls_table
+end
+
+System.player = {}
+
+local Closest_Entity = nil
+
+local last_closest_check = 0
+function System.player.get_closest()
+    local now = tick()
+    if now - last_closest_check < 0.1 then -- Limita a verificação para 10 vezes por segundo
+        return Closest_Entity
+    end
+    last_closest_check = now
+
+    local max_distance = math.huge
+    local closest_entity = nil
+    
+    if not Alive then return nil end
+    
+    for _, entity in pairs(Alive:GetChildren()) do
+        if entity ~= LocalPlayer.Character then
+            if entity.PrimaryPart then
+                local distance = LocalPlayer:DistanceFromCharacter(entity.PrimaryPart.Position)
+                if distance < max_distance then
+                    max_distance = distance
+                    closest_entity = entity
+                end
+            end
+        end
+    end
+    
+    Closest_Entity = closest_entity
+    return closest_entity
+end
+
+function System.player.get_closest_to_cursor()
+    if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild('HumanoidRootPart') then
+        return nil
+    end
+    
+    local closest_player = nil
+    local minimal_dot = -math.huge
+    local camera = workspace.CurrentCamera
+    
+    if not Alive then return nil end
+    
+    local success, mouse_location = pcall(function()
+        return UserInputService:GetMouseLocation()
+    end)
+    
+    if not success then return nil end
+    
+    local ray = camera:ScreenPointToRay(mouse_location.X, mouse_location.Y)
+    local pointer = CFrame.lookAt(ray.Origin, ray.Origin + ray.Direction)
+    
+    for _, player in pairs(Alive:GetChildren()) do
+        if player == LocalPlayer.Character then continue end
+        if not player:FindFirstChild('HumanoidRootPart') then continue end
+        
+        local direction = (player.HumanoidRootPart.Position - camera.CFrame.Position).Unit
+        local dot = pointer.LookVector:Dot(direction)
+        
+        if dot > minimal_dot then
+            minimal_dot = dot
+            closest_player = player
+        end
+    end
+    
+    return closest_player
+end
+
+System.curve = {}
+
+function System.curve.get_cframe()
+    local camera = workspace.CurrentCamera
+    local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild('HumanoidRootPart')
+    if not root then return camera.CFrame end
+    
+    local targetPart
+    local closest = System.player.get_closest_to_cursor()
+    if closest and closest:FindFirstChild('HumanoidRootPart') then
+        targetPart = closest.HumanoidRootPart
+    end
+    
+    local target_pos = targetPart and targetPart.Position or (root.Position + camera.CFrame.LookVector * 100)
+    
+    local curve_functions = {
+        function() return camera.CFrame end,
+        
+        function()
+            local direction = (target_pos - root.Position).Unit
+            local random_offset
+            local attempts = 0
+            repeat
+                random_offset = Vector3.new(
+                    math.random(-4000, 4000),
+                    math.random(-4000, 4000),
+                    math.random(-4000, 4000)
+                )
+                local curve_direction = (target_pos + random_offset - root.Position).Unit
+                local dot = direction:Dot(curve_direction)
+                attempts = attempts + 1
+            until dot < 0.95 or attempts > 10
+            return CFrame.new(root.Position, target_pos + random_offset)
+        end,
+        
+        function()
+            return CFrame.new(root.Position, target_pos + Vector3.new(0, 5, 0))
+        end,
+        
+        function()
+            local direction = (root.Position - target_pos).Unit
+            local backwards_pos = root.Position + direction * 10000 + Vector3.new(0, 1000, 0)
+            return CFrame.new(camera.CFrame.Position, backwards_pos)
+        end,
+        
+        function()
+            return CFrame.new(root.Position, target_pos + Vector3.new(0, -9e18, 0))
+        end,
+        
+        function()
+            return CFrame.new(root.Position, target_pos + Vector3.new(0, 9e18, 0))
+        end
+    }
+    
+    return curve_functions[System.__properties.__curve_mode]()
+end
+
+System.parry = {}
+
+-- MODIFICADO: Agora executa ambos os bypass
+function System.parry.execute()
+    if System.__properties.__parries > 10000 or not LocalPlayer.Character then
+        return
+    end
+    
+    -- PRIMEIRO: Executar bypass do River (original)
+    local camera = workspace.CurrentCamera
+    local success, mouse = pcall(function()
+        return UserInputService:GetMouseLocation()
+    end)
+    
+    if not success then return end
+    
+    local vec2_mouse = {mouse.X, mouse.Y}
+    local is_mobile = System.__properties.__is_mobile
+    
+    local event_data = {}
+    if Alive then
+        for _, entity in pairs(Alive:GetChildren()) do
+            if entity.PrimaryPart then
+                local success2, screen_point = pcall(function()
+                    return camera:WorldToScreenPoint(entity.PrimaryPart.Position)
+                end)
+                if success2 then
+                    event_data[entity.Name] = screen_point
+                end
+            end
+        end
+    end
+    
+    local curve_cframe = System.curve.get_cframe()
+    
+    -- Usar VirtualInput apenas uma vez para o primeiro parry
+    if not System.__properties.__first_parry_done and DualBypassSystem.__properties.__use_virtual_input_once 
+       and not DualBypassSystem.__properties.__virtual_input_used then
+        for _, connection in pairs(getconnections(LocalPlayer.PlayerGui.Hotbar.Block.Activated)) do
+            connection:Fire()
+        end
+        System.__properties.__first_parry_done = true
+        DualBypassSystem.__properties.__virtual_input_used = true
+        print("🎮 VirtualInput usado (apenas uma vez)")
+        return
+    end
+
+    local final_aim_target
+    if is_mobile then
+        local viewport = camera.ViewportSize
+        final_aim_target = {viewport.X / 2, viewport.Y / 2}
+    else
+        final_aim_target = vec2_mouse
+    end
+
+    for remote, original_args in pairs(revertedRemotes) do
+        local modified_args = {
+            original_args[1],
+            original_args[2],
+            original_args[3],
+            curve_cframe,
+            event_data,
+            final_aim_target,
+            original_args[7]
+        }
+        
+        pcall(function()
+            if remote:IsA('RemoteEvent') then
+                remote:FireServer(unpack(modified_args))
+            elseif remote:IsA('RemoteFunction') then
+                remote:InvokeServer(unpack(modified_args))
+            end
+        end)
+    end
+    
+    -- SEGUNDO: Executar bypass do Test (enviar bola para câmera)
+    if DualBypassSystem.__properties.__test_bypass_enabled and DualBypassSystem.__properties.__captured_data then
+        DualBypassSystem.execute_test_bypass()
+    end
+    
+    if System.__properties.__parries > 10000 then return end
+    
+    System.__properties.__parries = System.__properties.__parries + 1
+    task.delay(0.5, function()
+        if System.__properties.__parries > 0 then
+            System.__properties.__parries = System.__properties.__parries - 1
+        end
+    end)
+end
+
+function System.parry.keypress()
+    if System.__properties.__parries > 10000 or not LocalPlayer.Character then
+        return
+    end
+
+    local camera = workspace.CurrentCamera
+    local curve_cframe = System.curve.get_cframe()
+    local event_data = {}
+    
+    if Alive then
+        for _, entity in pairs(Alive:GetChildren()) do
+            if entity.PrimaryPart then
+                local success2, screen_point = pcall(function()
+                    return camera:WorldToScreenPoint(entity.PrimaryPart.Position)
+                end)
+                if success2 then
+                    event_data[entity.Name] = screen_point
+                end
+            end
+        end
+    end
+    
+    local is_mobile = System.__properties.__is_mobile
+    local final_aim_target
+    
+    if is_mobile then
+        local viewport = camera.ViewportSize
+        final_aim_target = {viewport.X / 2, viewport.Y / 2}
+    else
+        local success, mouse = pcall(function()
+            return UserInputService:GetMouseLocation()
+        end)
+        if success then
+            final_aim_target = {mouse.X, mouse.Y}
+        else
+            final_aim_target = {0, 0}
+        end
+    end
+    
+    for remote, original_args in pairs(revertedRemotes) do
+        local modified_args = {
+            original_args[1],
+            original_args[2],
+            original_args[3],
+            curve_cframe,
+            event_data,
+            final_aim_target,
+            original_args[7]
+        }
+        
+        pcall(function()
+            if remote:IsA('RemoteEvent') then
+                remote:FireServer(unpack(modified_args))
+            elseif remote:IsA('RemoteFunction') then
+                remote:InvokeServer(unpack(modified_args))
+            end
+        end)
+    end
+    
+    if System.__properties.__parries > 10000 then return end
+    
+    System.__properties.__parries = System.__properties.__parries + 1
+    task.delay(0.5, function()
+        if System.__properties.__parries > 0 then
+            System.__properties.__parries = System.__properties.__parries - 1
+        end
+    end)
+end
+
+function System.parry.execute_action()
+    System.animation.play_grab_parry()
+    System.parry.execute()
+end
+
+local function linear_predict(a, b, t)
+    return a + (b - a) * t
+end
+
+System.detection = {
+    __ball_properties = {
+        __aerodynamic_time = tick(),
+        __last_warping = tick(),
+        __lerp_radians = 0,
+        __curving = tick()
+    }
+}
+
+function System.detection.is_curved()
+    local props = System.detection.__ball_properties
+    local ball = System.ball.get()
+    if not ball then return false end
+
+    local zoomies = ball:FindFirstChild("zoomies")
+    if not zoomies then return false end
+
+    local velocity = zoomies.VectorVelocity
+    local speed = velocity.Magnitude
+    if speed < 1 then return false end
+
+    local ball_dir = velocity.Unit
+    local char = LocalPlayer.Character
+    if not char or not char.PrimaryPart then return false end
+
+    local pos = char.PrimaryPart.Position
+    local direction = (pos - ball.Position).Unit
+    local dot = direction:Dot(ball_dir)
+
+    local ping = Stats.Network.ServerStatsItem["Data Ping"]:GetValue() / 1000
+    local distance = (pos - ball.Position).Magnitude
+    local reach_time = distance / speed - ping
+
+    local dot_threshold = 0.55 - (ping * 0.75)
+    dot_threshold = math.clamp(dot_threshold, -1, 0.45)
+
+    local speed_threshold = math.min(speed / 100, 45)
+    local ball_distance_threshold = 15 - math.min(distance / 1000, 15) + speed_threshold
+
+    local clamped_dot = math.clamp(dot, -1, 1)
+    local radians = math.asin(clamped_dot)
+    props.__lerp_radians = linear_predict(props.__lerp_radians, radians, 0.85)
+
+    if props.__lerp_radians < 0.016 then
+        props.__last_warping = tick()
+    end
+
+    if distance < (ball_distance_threshold * 0.85) then
+        return false
+    end
+
+    local sudden_curve = (tick() - props.__last_warping) < (reach_time / 1.4)
+    if sudden_curve then
+        return true
+    end
+
+    local sustained_curve = (tick() - props.__curving) < (reach_time / 1.1)
+    if sustained_curve then
+        return true
+    end
+
+    return dot < dot_threshold
+end
+
+ReplicatedStorage.Remotes.DeathBall.OnClientEvent:Connect(function(c, d)
+    System.__properties.__deathslash_active = d or false
+end)
+
+ReplicatedStorage.Remotes.InfinityBall.OnClientEvent:Connect(function(a, b)
+    System.__properties.__infinity_active = b or false
+end)
+
+ReplicatedStorage.Packages._Index["sleitnick_net@0.1.0"].net["RE/TimeHoleActivate"].OnClientEvent:Connect(function(...)
+    local args = {...}
+    local player = args[1]
+    
+    if player == LocalPlayer or player == LocalPlayer.Name or (player and player.Name == LocalPlayer.Name) then
+        System.__properties.__timehole_active = true
+    end
+end)
+
+ReplicatedStorage.Packages._Index["sleitnick_net@0.1.0"].net["RE/TimeHoleDeactivate"].OnClientEvent:Connect(function()
+    System.__properties.__timehole_active = false
+end)
+
+ReplicatedStorage.Remotes.ParrySuccessAll.OnClientEvent:Connect(function(_, root)
+    if root.Parent and root.Parent ~= LocalPlayer.Character then
+        if not Alive or root.Parent.Parent ~= Alive then
+            return
+        end
+    end
+    
+    local closest = System.player.get_closest()
+    local ball = System.ball.get()
+    
+    if not ball or not closest then return end
+    
+    local target_distance = (LocalPlayer.Character.PrimaryPart.Position - closest.PrimaryPart.Position).Magnitude
+    local distance = (LocalPlayer.Character.PrimaryPart.Position - ball.Position).Magnitude
+            UpdateDynamicHitbox(distance, 15)
+    local direction = (LocalPlayer.Character.PrimaryPart.Position - ball.Position).Unit
+    local dot = direction:Dot(ball.AssemblyLinearVelocity.Unit)
+    
+    local curve_detected = System.detection.is_curved()
+    
+    if target_distance < 15 and distance < 15 and dot > -0.25 then
+        if curve_detected then
+            System.parry.execute_action()
+        end
+    end
+    
+    if System.__properties.__grab_animation then
+        System.__properties.__grab_animation:Stop()
+    end
+end)
+
+ReplicatedStorage.Remotes.ParrySuccess.OnClientEvent:Connect(function()
+    if not Alive or LocalPlayer.Character.Parent ~= Alive then
+        return
+    end
+    
+    if System.__properties.__grab_animation then
+        System.__properties.__grab_animation:Stop()
+    end
+end)
+
+ReplicatedStorage.Remotes.ParrySuccessAll.OnClientEvent:Connect(function(a, b)
+    local Primary_Part = LocalPlayer.Character.PrimaryPart
+    local Ball = System.ball.get()
+
+    if not Ball then
+        return
+    end
+
+    local Zoomies = Ball:FindFirstChild('zoomies')
+
+    if not Zoomies then
+        return
+    end
+
+    local Speed = Zoomies.VectorVelocity.Magnitude
+
+    local Distance = (LocalPlayer.Character.PrimaryPart.Position - Ball.Position).Magnitude
+    local Velocity = Zoomies.VectorVelocity
+
+    local Ball_Direction = Velocity.Unit
+
+    local Direction = (LocalPlayer.Character.PrimaryPart.Position - Ball.Position).Unit
+    local Dot = Direction:Dot(Ball_Direction)
+
+    local Pings = Stats.Network.ServerStatsItem['Data Ping']:GetValue()
+
+    local Speed_Threshold = math.min(Speed / 100, 40)
+    local Reach_Time = Distance / Speed - (Pings / 1000)
+
+    local Enough_Speed = Speed > 1
+    local Ball_Distance_Threshold = 15 - math.min(Distance / 1000, 15) + Speed_Threshold
+
+    if Enough_Speed and Reach_Time > Pings / 10 then
+        Ball_Distance_Threshold = math.max(Ball_Distance_Threshold - 5, 15)
+    end
+
+    if b ~= Primary_Part and Distance > Ball_Distance_Threshold then
+        System.detection.__ball_properties.__curving = tick()
+    end
+end)
+
+local Connections_Manager = {}
+local TriggerbotParried = false
+local Infinity = false
+
+System.autoparry = {}
+
+function System.autoparry.get_balls()
+    return System.ball.get_all()
+end
+
+function System.autoparry.start()
+    if System.__properties.__connections.__autoparry then
+        System.__properties.__connections.__autoparry:Disconnect()
+    end
+    
+    System.__properties.__connections.__autoparry = RunService.RenderStepped:Connect(function()
+        if not System.__properties.__autoparry_enabled or not LocalPlayer.Character or 
+           not LocalPlayer.Character.PrimaryPart then
+            return
+        end
+        
+        local balls = System.autoparry.get_balls()
+        local one_ball = System.ball.get()
+        
+        local training_ball = nil
+        if workspace:FindFirstChild("TrainingBalls") then
+            for _, Instance in pairs(workspace.TrainingBalls:GetChildren()) do
+                if Instance:GetAttribute("realBall") then
+                    training_ball = Instance
+                    break
+                end
+            end
+        end
+        
+        local any_triggerbot_active = false
+        local closest_distance = math.huge
+
+        for _, ball in pairs(balls) do
+            if not ball then continue end
+            
+            local zoomies = ball:FindFirstChild('zoomies')
+            if not zoomies then continue end
+            
+            ball:GetAttributeChangedSignal('target'):Once(function()
+                System.__properties.__parried = false
+                TriggerbotParried = false
+                System.__properties.__antidot_parried = false
+            end)
+            
+            if System.__properties.__parried then continue end
+            
+            local ball_target = ball:GetAttribute('target')
+            local velocity = zoomies.VectorVelocity
+            local distance = (LocalPlayer.Character.PrimaryPart.Position - ball.Position).Magnitude
+            
+            local ping = Stats.Network.ServerStatsItem['Data Ping']:GetValue() / 10
+            local ping_threshold = math.clamp(ping / 10, 5, 17)
+            local speed = velocity.Magnitude
+            
+            if speed <= 0 then
+                continue
+            end
+            
+            local capped_speed_diff = math.min(math.max(speed - 9.5, 0), 650)
+            local speed_divisor = (2.5 + capped_speed_diff * 0.002) * System.__properties.__divisor_multiplier
+            local parry_accuracy = ping_threshold + math.max(speed / speed_divisor, 9.5)
+            if getgenv().HitboxEnabled then
+                parry_accuracy = parry_accuracy + getgenv().HitboxSize
+            end
+            
+            UpdateDynamicHitbox(distance, parry_accuracy)
+            
+            local direction_to_player = (LocalPlayer.Character.PrimaryPart.Position - ball.Position).Unit
+            local dot_to_player = direction_to_player:Dot(velocity.Unit)
+            
+            if ball_target ~= LocalPlayer.Name then
+                if dot_to_player < 0.1 then
+                    continue
+                end
+            end
+            
+            -- Proteção contra Velocidades Altas (Antecipação Dinâmica)
+            if getgenv().HighSpeedProtection then
+                if speed > 1500 then
+                    local multiplier = 1 + (speed - 1500) / 1000
+                    parry_accuracy = parry_accuracy * math.clamp(multiplier, 1.5, 3.5)
+                end
+            else
+                -- Antecipação padrão para velocidade > 2000
+                if speed > 2000 then
+                    parry_accuracy = parry_accuracy * 2.0
+                end
+            end
+            
+            local curved = System.detection.is_curved()
+            
+            if ball:FindFirstChild('AeroDynamicSlashVFX') then
+                ball.AeroDynamicSlashVFX:Destroy()
+                System.__properties.__tornado_time = tick()
+            end
+            
+            if Runtime:FindFirstChild('Tornado') then
+                if (tick() - System.__properties.__tornado_time) < 
+                   (Runtime.Tornado:GetAttribute('TornadoTime') or 1) + 0.314159 then
+                    continue
+                end
+            end
+            
+            if one_ball and one_ball:GetAttribute('target') == LocalPlayer.Name and curved then
+                continue
+            end
+            
+            if ball:FindFirstChild('ComboCounter') then continue end
+            
+            if LocalPlayer.Character.PrimaryPart:FindFirstChild('SingularityCape') then continue end
+            
+            if System.__config.__detections.__infinity and System.__properties.__infinity_active then continue end
+            if System.__config.__detections.__deathslash and System.__properties.__deathslash_active then continue end
+            if System.__config.__detections.__timehole and System.__properties.__timehole_active then continue end
+            
+            local closest_player = System.player.get_closest()
+            local should_use_triggerbot = false
+            
+            if closest_player and ball_target == closest_player.Name then
+                local distance_to_closest = (LocalPlayer.Character.PrimaryPart.Position - closest_player.PrimaryPart.Position).Magnitude
+                closest_distance = math.min(closest_distance, distance_to_closest)
+                
+                -- Aumentado o range do triggerbot para 35 e removida a desativação brusca
+                if distance_to_closest <= 35 then
+                    should_use_triggerbot = true
+                    System.__properties.__triggerbot_active = true
+                    System.__properties.__triggerbot_working = true
+                    any_triggerbot_active = true
+                end
+            else
+                should_use_triggerbot = false
+                System.__properties.__triggerbot_active = false
+                System.__properties.__triggerbot_working = false
+            end
+            
+            if ball_target ~= LocalPlayer.Name and ball_target ~= (closest_player and closest_player.Name) then
+                should_use_triggerbot = false
+                System.__properties.__triggerbot_active = false
+                System.__properties.__triggerbot_working = false
+            end
+            
+            local now = tick()
+            
+            if closest_player and not System.__properties.__antidot_parried then
+                local player_distance = (LocalPlayer.Character.PrimaryPart.Position - closest_player.PrimaryPart.Position).Magnitude
+                
+                -- Ajustado Anti-Dot para não travar o loop em distâncias curtas
+                if player_distance <= 30 and dot_to_player > 0.75 then
+                    if ball_target == LocalPlayer.Name and distance <= 30 then
+                        System.parry.execute_action()
+                        System.__properties.__parried = true
+                        System.__properties.__antidot_parried = true
+                        System.__properties.__last_antidot_check = now
+                        -- Removido o continue para permitir que o spam continue processando
+                    end
+                end
+            end
+            
+            if should_use_triggerbot and System.__properties.__triggerbot_enabled then
+                if ball_target == LocalPlayer.Name and distance <= parry_accuracy then
+                    if getgenv().CooldownProtection then
+                        local ParryCD = LocalPlayer.PlayerGui.Hotbar.Block.UIGradient
+                        if ParryCD.Offset.Y < 0.4 then
+                            ReplicatedStorage.Remotes.AbilityButtonPress:Fire()
+                            continue
+                        end
+                    end
+                    
+                    if getgenv().AutoAbility then
+                        local AbilityCD = LocalPlayer.PlayerGui.Hotbar.Ability.UIGradient
+                        if AbilityCD.Offset.Y == 0.5 then
+                            if LocalPlayer.Character.Abilities:FindFirstChild("Raging Deflection") and LocalPlayer.Character.Abilities["Raging Deflection"].Enabled or
+                               LocalPlayer.Character.Abilities:FindFirstChild("Rapture") and LocalPlayer.Character.Abilities["Rapture"].Enabled or
+                               LocalPlayer.Character.Abilities:FindFirstChild("Calming Deflection") and LocalPlayer.Character.Abilities["Calming Deflection"].Enabled or
+                               LocalPlayer.Character.Abilities:FindFirstChild("Aerodynamic Slash") and LocalPlayer.Character.Abilities["Aerodynamic Slash"].Enabled or
+                               LocalPlayer.Character.Abilities:FindFirstChild("Fracture") and LocalPlayer.Character.Abilities["Fracture"].Enabled or
+                               LocalPlayer.Character.Abilities:FindFirstChild("Death Slash") and LocalPlayer.Character.Abilities["Death Slash"].Enabled then
+                                System.__properties.__parried = true
+                                ReplicatedStorage.Remotes.AbilityButtonPress:Fire()
+                                task.wait(2.432)
+                                ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("DeathSlashShootActivation"):FireServer(true)
+                                continue
+                            end
+                        end
+                    end
+                    
+                    if ball_target == LocalPlayer.Name and distance <= parry_accuracy then
+                        if getgenv().AutoParryMode == "Keypress" then
+                            System.parry.keypress()
+                        else
+                            System.parry.execute_action()
+                        end
+                        System.__properties.__parried = true
+                        TriggerbotParried = true
+                    end
+                end
+            else
+                if ball_target == LocalPlayer.Name and distance <= parry_accuracy then
+                    if getgenv().CooldownProtection then
+                        local ParryCD = LocalPlayer.PlayerGui.Hotbar.Block.UIGradient
+                        if ParryCD.Offset.Y < 0.4 then
+                            ReplicatedStorage.Remotes.AbilityButtonPress:Fire()
+                            continue
+                        end
+                    end
+                    
+                    if getgenv().AutoAbility then
+                        local AbilityCD = LocalPlayer.PlayerGui.Hotbar.Ability.UIGradient
+                        if AbilityCD.Offset.Y == 0.5 then
+                            if LocalPlayer.Character.Abilities:FindFirstChild("Raging Deflection") and LocalPlayer.Character.Abilities["Raging Deflection"].Enabled or
+                               LocalPlayer.Character.Abilities:FindFirstChild("Rapture") and LocalPlayer.Character.Abilities["Rapture"].Enabled or
+                               LocalPlayer.Character.Abilities:FindFirstChild("Calming Deflection") and LocalPlayer.Character.Abilities["Calming Deflection"].Enabled or
+                               LocalPlayer.Character.Abilities:FindFirstChild("Aerodynamic Slash") and LocalPlayer.Character.Abilities["Aerodynamic Slash"].Enabled or
+                               LocalPlayer.Character.Abilities:FindFirstChild("Fracture") and LocalPlayer.Character.Abilities["Fracture"].Enabled or
+                               LocalPlayer.Character.Abilities:FindFirstChild("Death Slash") and LocalPlayer.Character.Abilities["Death Slash"].Enabled then
+                                System.__properties.__parried = true
+                                ReplicatedStorage.Remotes.AbilityButtonPress:Fire()
+                                task.wait(2.432)
+                                ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("DeathSlashShootActivation"):FireServer(true)
+                                continue
+                            end
+                        end
+                    end
+                    
+                    if ball_target == LocalPlayer.Name and distance <= parry_accuracy then
+                        if getgenv().AutoParryMode == "Keypress" then
+                            System.parry.keypress()
+                        else
+                            System.parry.execute_action()
+                        end
+                        System.__properties.__parried = true
+                    end
+                end
+            end
+            
+            local last_parrys = tick()
+            repeat
+                RunService.RenderStepped:Wait()
+            until (tick() - last_parrys) >= 1 or not System.__properties.__parried
+            System.__properties.__parried = false
+            System.__properties.__antidot_parried = false
+        end
+        
+        if training_ball then
+            local zoomies = training_ball:FindFirstChild('zoomies')
+            if zoomies then
+                training_ball:GetAttributeChangedSignal('target'):Once(function()
+                    System.__properties.__training_parried = false
+                end)
+                
+                if not System.__properties.__training_parried then
+                    local ball_target = training_ball:GetAttribute('target')
+                    local velocity = zoomies.VectorVelocity
+                    local distance = LocalPlayer:DistanceFromCharacter(training_ball.Position)
+                    local speed = velocity.Magnitude
+                    
+                    local ping = Stats.Network.ServerStatsItem['Data Ping']:GetValue() / 10
+                    local ping_threshold = math.clamp(ping / 10, 5, 17)
+                    
+                    local capped_speed_diff = math.min(math.max(speed - 9.5, 0), 650)
+                    local speed_divisor = (2.4 + capped_speed_diff * 0.002) * System.__properties.__divisor_multiplier
+                    local parry_accuracy = ping_threshold + math.max(speed / speed_divisor, 9.5)
+            if getgenv().HitboxEnabled then
+                parry_accuracy = parry_accuracy + getgenv().HitboxSize
+            end
+                    
+                    -- Antecipação para velocidade > 2000 (Training Ball)
+                    if speed > 2000 then
+                        parry_accuracy = parry_accuracy * 2.0
+                    end
+                    
+                    UpdateDynamicHitbox(distance, parry_accuracy)
+                    
+                    if ball_target == LocalPlayer.Name and distance <= parry_accuracy then
+                        if getgenv().AutoParryMode == "Keypress" then
+                            System.parry.keypress()
+                        else
+                            System.parry.execute_action()
+                        end
+                        System.__properties.__training_parried = true
+                        
+                        local last_parrys = tick()
+                        repeat
+                            RunService.RenderStepped:Wait()
+                        until (tick() - last_parrys) >= 1 or not System.__properties.__training_parried
+                        System.__properties.__training_parried = false
+                    end
+                end
+            end
+        end
+    end)
+end
+
+function System.autoparry.stop()
+    if System.__properties.__connections.__autoparry then
+        System.__properties.__connections.__autoparry:Disconnect()
+        System.__properties.__connections.__autoparry = nil
+    end
+end
+
+System.manual_spam = {}
+
+local manualSpamThread = nil
+
+function System.manual_spam.start()
+    System.manual_spam.stop()
+
+    System.__properties.__manual_spam_enabled = true
+
+    local parry_keypress = System.parry.keypress
+    local parry_execute = System.parry.execute
+    local play_animation = System.animation.play_grab_parry
+
+    local threshold = (getgenv().ScriptVersion == "Lite") and 0.015 or 0.005
+
+    manualSpamThread = coroutine.create(function()
+        local last_spam = os.clock()
+
+        while System.__properties.__manual_spam_enabled do
+            local now = os.clock()
+
+            if now - last_spam >= threshold then
+                last_spam = now
+
+                if getgenv().ManualSpamMode == "Keypress" then
+                    parry_keypress()
+                else
+                    parry_execute()
+                    if getgenv().ManualSpamAnimationFix then
+                        play_animation()
+                    end
+                end
+            end
+
+            -- Yield mínimo, mantém CPS alto sem travar
+            task.wait(0)
+        end
+    end)
+
+    coroutine.resume(manualSpamThread)
+end
+
+function System.manual_spam.stop()
+    System.__properties.__manual_spam_enabled = false
+    manualSpamThread = nil
+end
+
+
+System.auto_spam = {}
+
+local autoSpamThread = nil
+
+function System.auto_spam.start()
+    System.auto_spam.stop()
+
+    System.__properties.__auto_spam_enabled = true
+
+    autoSpamThread = coroutine.create(function()
+        while System.__properties.__auto_spam_enabled do
+            local target = System.__properties.__spam_target
+
+            if target then
+                System.parry.execute()
+            end
+
+            -- Mesmo yield mínimo do manual
+            task.wait(0)
+        end
+    end)
+
+    coroutine.resume(autoSpamThread)
+end
+
+function System.auto_spam.stop()
+    System.__properties.__auto_spam_enabled = false
+    System.__properties.__spam_target = nil
+    System.__properties.__spam_target_time = 0
+    autoSpamThread = nil
+end
+
+function System.auto_spam:get_entity_properties()
+    local entity = Closest_Entity
+    if not entity or not entity.PrimaryPart then return false end
+    
+    local char = LocalPlayer.Character
+    if not char or not char.PrimaryPart then return false end
+    
+    local root_pos = char.PrimaryPart.Position
+    local entity_pos = entity.PrimaryPart.Position
+    local diff = root_pos - entity_pos
+    
+    return {
+        Velocity = entity.PrimaryPart.Velocity,
+        Direction = diff.Unit,
+        Distance = diff.Magnitude
+    }
+end
+
+function System.auto_spam:get_ball_properties()
+    local ball = System.ball.get()
+    if not ball then return false end
+    
+    local char = LocalPlayer.Character
+    if not char or not char.PrimaryPart then return false end
+    
+    local ball_pos = ball.Position
+    local root_pos = char.PrimaryPart.Position
+    local diff = root_pos - ball_pos
+    
+    local ball_velocity = ball.AssemblyLinearVelocity or Vector3.zero
+    
+    return {
+        Velocity = ball_velocity,
+        Direction = diff.Unit,
+        Distance = diff.Magnitude,
+        Dot = diff.Unit:Dot(ball_velocity.Unit)
+    }
+end
+
+function System.auto_spam.spam_service(self)
+    local ball = System.ball.get()
+    local entity = System.player.get_closest()
+    
+    if not ball or not entity or not entity.PrimaryPart then
+        return false
+    end
+    
+    local spam_accuracy = 0
+    
+    local velocity = ball.AssemblyLinearVelocity or Vector3.zero
+    local speed = velocity.Magnitude
+    
+    local direction = (LocalPlayer.Character.PrimaryPart.Position - ball.Position).Unit
+    local dot = direction:Dot(velocity.Unit)
+    
+    local target_position = entity.PrimaryPart.Position
+    local target_distance = LocalPlayer:DistanceFromCharacter(target_position)
+    
+    local multiplier = System.__properties.__auto_spam_distance_multiplier or 1.0
+    local base_distance = 30 * multiplier
+    local maximum_spam_distance = (self.Ping + math.min(speed / 4, 60)) * multiplier
+    
+    if self.Entity_Properties.Distance > maximum_spam_distance and self.Entity_Properties.Distance > base_distance then
+        return 0
+    end
+    
+    if self.Ball_Properties.Distance > maximum_spam_distance and self.Ball_Properties.Distance > base_distance then
+        return 0
+    end
+    
+    if target_distance > maximum_spam_distance and target_distance > base_distance then
+        return 0
+    end
+    
+    local maximum_speed =  7 - math.min(speed / 5, 5)
+    local maximum_dot = math.clamp(dot, -1, 1) * maximum_speed
+    
+    spam_accuracy = maximum_spam_distance - maximum_dot
+    
+    return spam_accuracy
+end
+
+function System.auto_spam.start()
+    if System.__properties.__connections.__auto_spam_connection then
+        System.__properties.__connections.__auto_spam_connection:Disconnect()
+    end
+    
+    System.__properties.__auto_spam_enabled = true
+    
+    local last_auto_spam = 0
+    local last_target_check = 0
+    local event = (getgenv().ScriptVersion == "Lite") and RunService.Heartbeat or RunService.RenderStepped
+    
+    -- Cache de funções e serviços para performance
+    local get_ball = System.ball.get
+    local get_closest = System.player.get_closest
+    local parry_keypress = System.parry.keypress
+    local parry_execute = System.parry.execute
+    local play_animation = System.animation.play_grab_parry
+    
+    System.__properties.__connections.__auto_spam_connection = event:Connect(function()
+        local char = LocalPlayer.Character
+        if not System.__properties.__auto_spam_enabled or not char or char.Parent ~= Alive then
+            return
+        end
+        
+        local now = tick()
+        local threshold = (getgenv().ScriptVersion == "Lite") and 0.015 or 0.008
+        if now - last_auto_spam < threshold then return end
+        last_auto_spam = now
+            
+        local ball = get_ball()
+        if not ball then return end
+        
+        local zoomies = ball:FindFirstChild('zoomies')
+        if not zoomies then return end
+        
+        -- Otimização: Não busca o player mais próximo a cada frame, apenas a cada 0.1s
+        if now - last_target_check > 0.1 then
+            get_closest()
+            last_target_check = now
+            
+            if System.__properties.__spam_target then
+                local target = System.__properties.__spam_target
+                if not target.Parent or not target:FindFirstChild("Humanoid") or target.Humanoid.Health <= 0 then
+                    System.__properties.__spam_target = nil
+                    System.__properties.__spam_target_time = 0
+                end
+            end
+            
+            if not System.__properties.__spam_target or (now - System.__properties.__spam_target_time > 1) then
+                System.__properties.__spam_target = Closest_Entity
+                System.__properties.__spam_target_time = now
+            end
+        end
+        
+        local ball_target = ball:GetAttribute('target')
+        if not ball_target then return end
+        
+        local ball_properties = System.auto_spam:get_ball_properties()
+        local entity_properties = System.auto_spam:get_entity_properties()
+        
+        if ball_properties and entity_properties then
+            local ping = Stats.Network.ServerStatsItem['Data Ping']:GetValue()
+            local ping_threshold = math.clamp(ping / 5, 1, 16)
+            
+            local spam_accuracy = System.auto_spam.spam_service({
+                Ball_Properties = ball_properties,
+                Entity_Properties = entity_properties,
+                Ping = ping_threshold
+            })
+            
+            if spam_accuracy > 0 then
+                local root = char.PrimaryPart
+                if not root then return end
+                
+                local target_entity = Closest_Entity
+                if not target_entity or not target_entity.PrimaryPart then return end
+                
+                local target_pos = target_entity.PrimaryPart.Position
+                local target_dist = (root.Position - target_pos).Magnitude
+                
+                local ball_pos = ball.Position
+                local dist_to_ball = (root.Position - ball_pos).Magnitude
+                
+                local shouldSpam = false
+                local spam_target = System.__properties.__spam_target
+                if spam_target then
+                    if ball_target == spam_target.Name or ball_target == LocalPlayer.Name then
+                        shouldSpam = true
+                    end
+                end
+                
+                if shouldSpam and not char:GetAttribute('Pulsed') then
+                    if target_dist <= spam_accuracy and dist_to_ball <= spam_accuracy then
+                        local multiplier = System.__properties.__auto_spam_distance_multiplier or 1.0
+                        local max_allowed_dist = 35 * multiplier
+                        
+                        local is_target = (ball_target == LocalPlayer.Name)
+                        local final_max_dist = is_target and max_allowed_dist or (max_allowed_dist * 0.8)
+                        
+                        if target_dist <= final_max_dist and dist_to_ball <= final_max_dist then
+                            if System.__properties.__parries > System.__properties.__spam_threshold then
+                                if getgenv().AutoSpamMode == "Keypress" then
+                                    parry_keypress()
+                                else
+                                    parry_execute()
+                                    if getgenv().AutoSpamAnimationFix then
+                                        play_animation()
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end)
+end
+
+
+-- CORREÇÃO DA FUNÇÃO destroy_mobile_gui
+local function destroy_mobile_gui(gui_data)
+    if not gui_data then return end
+    
+    -- Verifica se é uma instância direta
+    if typeof(gui_data) == "Instance" then
+        if gui_data:IsA("ScreenGui") or gui_data:IsA("GuiObject") then
+            gui_data:Destroy()
+        end
+    -- Verifica se é uma tabela com chave 'gui'
+    elseif type(gui_data) == "table" and gui_data.gui then
+        if typeof(gui_data.gui) == "Instance" then
+            gui_data.gui:Destroy()
+        end
+    end
+end
+
+local function create_mobile_button(name, position_y, color)
+    local gui = Instance.new('ScreenGui')
+    gui.Name = 'Sigma' .. name .. 'Mobile'
+    gui.ResetOnSpawn = false
+    gui.IgnoreGuiInset = true
+    gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    
+    local button = Instance.new('TextButton')
+    button.Size = UDim2.new(0, 140, 0, 50)
+    button.Position = load_ui_position("Sigma" .. name .. "Mobile", UDim2.new(0.5, -70, position_y, 0))
+    button.BackgroundTransparency = 1
+    button.AnchorPoint = Vector2.new(0.5, 0)
+    button.Draggable = true
+
+    button:GetPropertyChangedSignal("Position"):Connect(function()
+        save_ui_position("Sigma" .. name .. "Mobile", button.Position)
+    end)
+    button.AutoButtonColor = false
+    button.ZIndex = 2
+    
+    local bg = Instance.new('Frame')
+    bg.Size = UDim2.new(1, 0, 1, 0)
+    bg.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    bg.Parent = button
+    
+    local corner = Instance.new('UICorner')
+    corner.CornerRadius = UDim.new(0, 10)
+    corner.Parent = bg
+    
+    local stroke = Instance.new('UIStroke')
+    stroke.Color = color
+    stroke.Thickness = 1
+    stroke.Transparency = 0.3
+    stroke.Parent = bg
+    
+    local text = Instance.new('TextLabel')
+    text.Size = UDim2.new(1, 0, 1, 0)
+    text.BackgroundTransparency = 1
+    text.Text = name
+    text.Font = Enum.Font.GothamBold
+    text.TextSize = 16
+    text.TextColor3 = Color3.fromRGB(255, 255, 255)
+    text.ZIndex = 3
+    text.Parent = button
+    
+    button.Parent = gui
+    gui.Parent = CoreGui
+    
+    return {gui = gui, button = button, text = text, bg = bg}
+end
+
+
+
+
+local autoparry_module = rage:create_module({
+    title = 'Auto Parry',
+    flag = 'Auto_Parry',
+    description = 'Automatically parries ball',
+    section = 'left',
+    callback = function(value)
+        System.__properties.__autoparry_enabled = value
+        if value then
+            System.autoparry.start()
+            if getgenv().AutoParryNotify then
+                Library.SendNotification({
+                    title = "Auto Parry",
+                    text = "ON (Triggerbot integrado ativo)",
+                    duration = 3
+                })
+            end
+        else
+            System.autoparry.stop()
+            if getgenv().AutoParryNotify then
+                Library.SendNotification({
+                    title = "Auto Parry",
+                    text = "OFF",
+                    duration = 2
+                })
+            end
+        end
+    end
+})
+
+autoparry_module:create_dropdown({
+    title = "Parry Mode",
+    flag = "autoparry_mode",
+    options = {"Remote", "Keypress"},
+    default = "Remote",
+    multi_dropdown = false,
+    maximum_options = 2,
+    callback = function(value)
+        getgenv().AutoParryMode = value
+    end
+})
+
+    local AutoCurveDropdown = autoparry_module:AddDropdown({
+    Title = "Dropdown",
+    Options = {'Option1', 'Option2'},
+    Default = "Option1",
+    Callback = function(value)
+        for i, name in ipairs(System.__config.__curve_names) do
+            if name == value then
+                System.__properties.__curve_mode = i
+                -- Sincroniza com a UI móvel
+                if _G.UpdateMobileCurveVisuals then
+                    _G.UpdateMobileCurveVisuals(i)
+                end
+})
+_G.AutoCurveDropdown = AutoCurveDropdown
+
+local parry_slider_settings = {
+    title = 'Parry Accuracy',
+    flag = 'Parry_Accuracy',
+    maximum_value = 100,
+    minimum_value = 1,
+    value = 50,
+    round_number = true,
+    callback = function(value)
+        System.__properties.__accuracy = value
+        update_divisor()
+    end
+}
+_G.ParryAccuracySlider_Settings = parry_slider_settings
+_G.ParryAccuracySlider = autoparry_module:create_slider(parry_slider_settings)
+
+autoparry_module:create_checkbox({
+    title = "Randomized Accuracy (Ping Based)",
+    flag = "Randomized_Accuracy",
+    callback = function(value)
+        System.__properties.__randomized_accuracy_enabled = value
+        if value then
+            update_randomized_accuracy()
+        end
+    end
+})
+
+autoparry_module:create_checkbox({
+    title = "Play Animation",
+    flag = "Play_Animation",
+    callback = function(value)
+        System.__properties.__play_animation = value
+    end
+})
+
+local dynamic_divider = autoparry_module:create_divider({showtopic = true, title = "Dynamic Visual Hitbox"})
+
+local dynamic_color = autoparry_module:create_color_picker({
+    title = "Hitbox Color",
+    default = Color3.fromRGB(255, 255, 255),
+    callback = function(color)
+        getgenv().DynamicHitbox.Color = color
+    end
+})
+
+local dynamic_max_slider = autoparry_module:AddSlider({
+    Title = "Slider",
+    Min = 10,
+    Max = 100,
+    Default = 50,
+    Increment = 1,
+    Callback = function(value)
+        getgenv().DynamicHitbox.MaxSize = value
+    end
+})
+
+local dynamic_min_slider = autoparry_module:AddSlider({
+    Title = "Slider",
+    Min = 1,
+    Max = 30,
+    Default = 50,
+    Increment = 1,
+    Callback = function(value)
+        getgenv().DynamicHitbox.MinSize = value
+    end
+})
+
+local function update_dynamic_visibility(state)
+    dynamic_color:set_visible(state)
+    dynamic_max_slider:set_visible(state)
+    dynamic_min_slider:set_visible(state)
+end
+
+autoparry_module:create_checkbox({
+    title = "Enable Dynamic Hitbox",
+    flag = "Dynamic_Visual_Hitbox",
+    callback = function(value)
+        getgenv().DynamicHitbox.Enabled = value
+        update_dynamic_visibility(value)
+    end
+})
+
+-- Inicializar visibilidade baseada no estado salvo
+task.spawn(function()
+    task.wait(0.5)
+    update_dynamic_visibility(getgenv().DynamicHitbox.Enabled)
+end)
+
+autoparry_module:create_divider({})
+
+autoparry_module:create_checkbox({
+    title = "Notify",
+    flag = "Auto_Parry_Notify",
+    callback = function(value)
+        getgenv().AutoParryNotify = value
+    end
+})
+
+autoparry_module:create_checkbox({
+    title = "Cooldown Protection",
+    flag = "CooldownProtection",
+    callback = function(value)
+        getgenv().CooldownProtection = value
+    end
+})
+
+	autoparry_module:create_checkbox({
+	    title = "Auto Ability",
+	    flag = "AutoAbility",
+	    callback = function(value)
+	        getgenv().AutoAbility = value
+	    end
+	})
+
+	
+
+-- FUNÇÃO create_curve_selector_mobile CORRIGIDA
+local function create_curve_selector_mobile()
+    local gui = Instance.new('ScreenGui')
+    gui.Name = 'SigmaCurveSelectorMobile'
+    gui.ResetOnSpawn = false
+    gui.IgnoreGuiInset = true
+    gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    gui.DisplayOrder = 999
+    
+    local main_frame = Instance.new('Frame')
+    main_frame.Size = UDim2.new(0, 140, 0, 40)
+    main_frame.Position = load_ui_position("SigmaCurveSelectorMobile", UDim2.new(0.5, -70, 0.12, 0))
+    main_frame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+    main_frame.BorderSizePixel = 0
+    main_frame.AnchorPoint = Vector2.new(0.5, 0)
+    main_frame.ZIndex = 5
+    main_frame.Active = true
+    main_frame.Selectable = true
+    main_frame.Draggable = true
+
+    main_frame:GetPropertyChangedSignal("Position"):Connect(function()
+        save_ui_position("SigmaCurveSelectorMobile", main_frame.Position)
+    end)
+    main_frame.Parent = gui
+    
+    -- Inicializa o visual móvel com o valor atual (movido para baixo da definição da função)
+    
+    local main_corner = Instance.new('UICorner')
+    main_corner.CornerRadius = UDim.new(0, 8)
+    main_corner.Parent = main_frame
+    
+    local main_stroke = Instance.new('UIStroke')
+    main_stroke.Color = Color3.fromRGB(60, 60, 60)
+    main_stroke.Thickness = 1
+    main_stroke.Parent = main_frame
+
+    local header = Instance.new('Frame')
+    header.Size = UDim2.new(1, 0, 0, 40)
+    header.BackgroundTransparency = 1
+    header.ZIndex = 6
+    header.Parent = main_frame
+    
+    local header_text = Instance.new('TextLabel')
+    header_text.Size = UDim2.new(1, -35, 1, 0)
+    header_text.Position = UDim2.new(0, 12, 0, 0)
+    header_text.BackgroundTransparency = 1
+    header_text.Text = "CURVE"
+    header_text.Font = Enum.Font.Gotham
+    header_text.TextSize = 11
+    header_text.TextColor3 = ThemeColors.PrimaryLight
+    header_text.TextXAlignment = Enum.TextXAlignment.Left
+    header_text.ZIndex = 7
+    header_text.Parent = header
+
+    local toggle_btn = Instance.new('TextButton')
+    toggle_btn.Size = UDim2.new(0, 24, 0, 24)
+    toggle_btn.Position = UDim2.new(1, -32, 0.5, -12)
+    toggle_btn.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+    toggle_btn.Text = "−"
+    toggle_btn.Font = Enum.Font.GothamBold
+    toggle_btn.TextSize = 14
+    toggle_btn.TextColor3 = ThemeColors.PrimaryLight
+    toggle_btn.AutoButtonColor = false
+    toggle_btn.ZIndex = 7
+    toggle_btn.Parent = header
+    
+    local toggle_corner = Instance.new('UICorner')
+    toggle_corner.CornerRadius = UDim.new(0, 4)
+    toggle_corner.Parent = toggle_btn
+    
+    local toggle_stroke = Instance.new('UIStroke')
+    toggle_stroke.Color = Color3.fromRGB(50, 50, 50)
+    toggle_stroke.Thickness = 1
+    toggle_stroke.Parent = toggle_btn
+
+    local buttons_container = Instance.new('Frame')
+    buttons_container.Size = UDim2.new(1, -16, 0, 0)
+    buttons_container.Position = UDim2.new(0, 8, 0, 48)
+    buttons_container.BackgroundTransparency = 1
+    buttons_container.ClipsDescendants = true
+    buttons_container.ZIndex = 6
+    buttons_container.Parent = main_frame
+    
+    local list_layout = Instance.new('UIListLayout')
+    list_layout.Padding = UDim.new(0, 4)
+    list_layout.FillDirection = Enum.FillDirection.Vertical
+    list_layout.SortOrder = Enum.SortOrder.LayoutOrder
+    list_layout.Parent = buttons_container
+    
+    local buttons = {}
+    local current_selected = nil
+    
+    local function update_mobile_visuals(index)
+        if current_selected then
+            game:GetService("TweenService"):Create(current_selected.button, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
+                BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+            }):Play()
+            game:GetService("TweenService"):Create(current_selected.text, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
+                TextColor3 = Color3.fromRGB(150, 150, 150)
+            }):Play()
+            game:GetService("TweenService"):Create(current_selected.stroke, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
+                Color = Color3.fromRGB(45, 45, 45)
+            }):Play()
+            current_selected.indicator.Visible = false
+        end
+
+        local new_selected = buttons[index]
+        if new_selected then
+            game:GetService("TweenService"):Create(new_selected.button, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
+                BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+            }):Play()
+            game:GetService("TweenService"):Create(new_selected.text, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
+                TextColor3 = Color3.fromRGB(255, 255, 255)
+            }):Play()
+            game:GetService("TweenService"):Create(new_selected.stroke, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
+                Color = ThemeColors.Primary
+            }):Play()
+            new_selected.indicator.Visible = true
+            current_selected = new_selected
+        end
+    end
+    
+    _G.UpdateMobileCurveVisuals = update_mobile_visuals
+    -- Inicializa o visual móvel com o valor atual
+    task.spawn(function()
+        task.wait(0.5)
+        if update_mobile_visuals then
+            update_mobile_visuals(System.__properties.__curve_mode or 1)
+        end
+    end)
+
+    for i, curve_name in ipairs(System.__config.__curve_names) do
+        if not curve_name then continue end
+        local btn_container = Instance.new('Frame')
+        btn_container.Size = UDim2.new(1, 0, 0, 32)
+        btn_container.BackgroundTransparency = 1
+        btn_container.ZIndex = 7
+        btn_container.LayoutOrder = i
+        btn_container.Parent = buttons_container
+        
+        local btn = Instance.new('TextButton')
+        btn.Size = UDim2.new(1, 0, 1, 0)
+        btn.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+        btn.Text = ""
+        btn.AutoButtonColor = false
+        btn.ZIndex = 8
+        btn.Parent = btn_container
+        
+        local btn_corner = Instance.new('UICorner')
+        btn_corner.CornerRadius = UDim.new(0, 6)
+        btn_corner.Parent = btn
+        
+        local btn_stroke = Instance.new('UIStroke')
+        btn_stroke.Color = ThemeColors.Primary
+        btn_stroke.Thickness = 1
+        btn_stroke.Parent = btn
+
+        local indicator = Instance.new('Frame')
+        indicator.Name = "indicator"
+        indicator.Size = UDim2.new(0, 3, 0, 20)
+        indicator.Position = UDim2.new(0, 6, 0.5, -10)
+        indicator.BackgroundColor3 = ThemeColors.Accent
+        indicator.BorderSizePixel = 0
+        indicator.Visible = false
+        indicator.ZIndex = 10
+        indicator.Parent = btn
+        
+        local indicator_corner = Instance.new('UICorner')
+        indicator_corner.CornerRadius = UDim.new(1, 0)
+        indicator_corner.Parent = indicator
+        
+        local btn_text = Instance.new('TextLabel')
+        btn_text.Size = UDim2.new(1, -20, 1, 0)
+        btn_text.Position = UDim2.new(0, 16, 0, 0)
+        btn_text.BackgroundTransparency = 1
+        btn_text.Text = curve_name
+        btn_text.Font = Enum.Font.Gotham
+        btn_text.TextSize = 11
+        btn_text.TextColor3 = ThemeColors.PrimaryDark
+        btn_text.TextXAlignment = Enum.TextXAlignment.Left
+        btn_text.ZIndex = 9
+        btn_text.Parent = btn
+        
+        buttons[i] = {
+            button = btn, 
+            stroke = btn_stroke, 
+            text = btn_text,
+            indicator = indicator,
+            container = btn_container
+        }
+        
+        local touch_start = 0
+        local was_dragged = false
+        
+        btn.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.Touch then
+                touch_start = tick()
+                was_dragged = false
+            end
+        end)
+        
+        btn.InputChanged:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.Touch then
+                if (tick() - touch_start) > 0.1 then
+                    was_dragged = true
+                end
+            end
+        end)
+        
+        btn.InputEnded:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.Touch and not was_dragged then
+                System.__properties.__curve_mode = i
+                update_mobile_visuals(i)
+                
+                -- Sincroniza com a UI principal
+                if _G.AutoCurveDropdown then
+                    _G.AutoCurveDropdown:update(curve_name)
+                end
+
+                if getgenv().AutoCurveHotkeyNotify then
+                    Library.SendNotification({
+                        title = "AutoCurve",
+                        text = curve_name,
+                        duration = 2
+                    })
+                end
+            end
+        end)
+    end
+
+    local is_expanded = true
+    local curve_count = #System.__config.__curve_names or 0
+    local expanded_height = 48 + (curve_count * 32) + (math.max(0, curve_count - 1) * 4) + 12
+    local minimized_height = 40
+    
+    buttons_container.Size = UDim2.new(1, -16, 0, (curve_count * 32) + ((curve_count - 1) * 4))
+    main_frame.Size = UDim2.new(0, 140, 0, expanded_height)
+    
+    toggle_btn.MouseButton1Click:Connect(function()
+        is_expanded = not is_expanded
+        toggle_btn.Text = is_expanded and "−" or "+"
+        
+        game:GetService("TweenService"):Create(main_frame, TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+            Size = UDim2.new(0, 140, 0, is_expanded and expanded_height or minimized_height)
+        }):Play()
+        
+        game:GetService("TweenService"):Create(buttons_container, TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+            Size = UDim2.new(1, -16, 0, is_expanded and (curve_count * 32) + ((curve_count - 1) * 4) or 0)
+        }):Play()
+    end)
+
+    gui.Parent = CoreGui
+    return {gui = gui, main_frame = main_frame}
+end
+
+local hotkeyModule = rage:create_module({
+    title = "AutoCurve Hotkey" .. (System.__properties.__is_mobile and "(Mobile)" or "(PC)"),
+    description = "Press 1-6 to change curve",
+    flag = "autocurve_hotkey",
+    section = "left",
+    callback = function(state)
+        getgenv().AutoCurveHotkeyEnabled = state
+        
+        if System.__properties.__is_mobile then
+            if state then
+                if not System.__properties.__mobile_guis.curve_selector then
+                    local curve_selector_data = create_curve_selector_mobile()
+                    System.__properties.__mobile_guis.curve_selector = curve_selector_data
+                end
+            else
+                destroy_mobile_gui(System.__properties.__mobile_guis.curve_selector)
+                System.__properties.__mobile_guis.curve_selector = nil
+            end
+        end
+    end
+})
+
+hotkeyModule:create_checkbox({
+    title = "Notify",
+    flag = "AutoCurveHotkeyNotify",
+    callback = function(value)
+        getgenv().AutoCurveHotkeyNotify = value
+    end
+})
+
+detectionstab:create_module({
+    title = 'Infinity Detection',
+    flag = 'Infinity',
+    description = '',
+    section = 'left',
+    callback = function(value)
+        System.__config.__detections.__infinity = value
+    end
+})
+
+detectionstab:create_module({
+    title = 'Death Slash Detection',
+    flag = 'Death_Slash',
+    description = '',
+    section = 'right',
+    callback = function(value)
+        System.__config.__detections.__deathslash = value
+    end
+})
+
+detectionstab:create_module({
+    title = 'Time Hole Detection',
+    flag = 'Time_Hole',
+    description = '',
+    section = 'left',
+    callback = function(value)
+        System.__config.__detections.__timehole = value
+    end
+})
+
+local AntiPhantom = {
+    Enabled = false,
+    CurrentBall = nil,
+    FocusConnection = nil
+}
+
+function AntiPhantom:HandleTransmission(Object)
+    if not self.Enabled then return end
+    
+    if Object.Name == "maxTransmission" or Object.Name == "transmissionpart" then
+        local Weld = Object:FindFirstChildWhichIsA("WeldConstraint")
+        if Weld then
+            local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+            if Character and Weld.Part1 == Character.HumanoidRootPart then
+                self.CurrentBall = System.ball.get()
+                Weld:Destroy()
+                
+                if self.CurrentBall then
+                    self:InstantParry()
+                end
+            end
+        end
+    end
+end
+
+function AntiPhantom:InstantParry()
+    if not self.CurrentBall or not self.Enabled then return end
+    
+    ReplicatedStorage.Remotes.AbilityButtonPress:Fire()
+    System.__properties.__parried = true
+    
+    if System.parry and System.parry.execute_action then
+        System.parry.execute_action()
+    end
+    
+    task.delay(1, function()
+        System.__properties.__parried = false
+    end)
+    
+    self.CurrentBall = nil
+    
+    if self.FocusConnection then
+        self.FocusConnection:Disconnect()
+        self.FocusConnection = nil
+    end
+end
+
+function AntiPhantom:Cleanup()
+    if self.FocusConnection then
+        self.FocusConnection:Disconnect()
+        self.FocusConnection = nil
+    end
+    self.CurrentBall = nil
+end
+
+function AntiPhantom:Toggle(state)
+    self.Enabled = state
+    System.__config.__detections.__phantom = state
+    
+    if state then
+        if getgenv().AntiPhantomNotify then
+            Library.SendNotification({
+                title = "Anti-Phantom",
+                text = "ON - INSTANT",
+                duration = 2
+            })
+        end
+    else
+        self:Cleanup()
+        if getgenv().AntiPhantomNotify then
+            Library.SendNotification({
+                title = "Anti-Phantom",
+                text = "OFF",
+                duration = 2
+            })
+        end
+    end
+end
+
+Runtime.ChildAdded:Connect(function(Object)
+    AntiPhantom:HandleTransmission(Object)
+end)
+
+local phantom_module = detectionstab:create_module({
+    title = 'Anti-Phantom ',
+    flag = 'Anti_Phantom',
+    description = 'Counter Phantom ',
+    section = 'left',
+    callback = function(value)
+        AntiPhantom:Toggle(value)
+    end
+})
+
+local manual_spam_module = set:create_module({
+    title = "Manual Spam",
+    description = "spam manual",
+    flag = "manualspam",
+    section = "left",
+    callback = function(state)
+        if System.__properties.__is_mobile then
+            if state then
+                if not System.__properties.__mobile_guis.manual_spam then
+                    local manual_spam_mobile = create_mobile_button('Spam', 0.8, Color3.fromRGB(255, 255, 255))
+                    System.__properties.__mobile_guis.manual_spam = manual_spam_mobile
+                    
+                    local manual_touch_start = 0
+                    local manual_was_dragged = false
+                    
+                    manual_spam_mobile.button.InputBegan:Connect(function(input)
+                        if input.UserInputType == Enum.UserInputType.Touch then
+                            manual_touch_start = tick()
+                            manual_was_dragged = false
+                        end
+                    end)
+                    
+                    manual_spam_mobile.button.InputChanged:Connect(function(input)
+                        if input.UserInputType == Enum.UserInputType.Touch then
+                            if (tick() - manual_touch_start) > 0.1 then
+                                manual_was_dragged = true
+                            end
+                        end
+                    end)
+                    
+                    manual_spam_mobile.button.InputEnded:Connect(function(input)
+                        if input.UserInputType == Enum.UserInputType.Touch and not manual_was_dragged then
+                            System.__properties.__manual_spam_enabled = not System.__properties.__manual_spam_enabled
+                            
+                            if System.__properties.__manual_spam_enabled then
+                                System.manual_spam.start()
+                                manual_spam_mobile.text.Text = "ON"
+                                manual_spam_mobile.text.TextColor3 = Color3.fromRGB(0, 255, 100)
+                            else
+                                System.manual_spam.stop()
+                                manual_spam_mobile.text.Text = "Spam"
+                                manual_spam_mobile.text.TextColor3 = Color3.fromRGB(255, 255, 255)
+                            end
+                            
+                            if getgenv().ManualSpamNotify then
+                                Library.SendNotification({
+                                    title = "ManualSpam",
+                                    text = System.__properties.__manual_spam_enabled and "ON (100K CPS)" or "OFF",
+                                    duration = 2
+                                })
+                            end
+                        end
+                    end)
+                end
+            else
+                System.__properties.__manual_spam_enabled = false
+                System.manual_spam.stop()
+                destroy_mobile_gui(System.__properties.__mobile_guis.manual_spam)
+                System.__properties.__mobile_guis.manual_spam = nil
+            end
+        else
+            System.__properties.__manual_spam_enabled = state
+            if state then
+                System.manual_spam.start()
+                if getgenv().ManualSpamNotify then
+                    Library.SendNotification({
+                        title = "Manual Spam",
+                        text = "ON (100K CPS)",
+                        duration = 2
+                    })
+                end
+            else
+                System.manual_spam.stop()
+                if getgenv().ManualSpamNotify then
+                    Library.SendNotification({
+                        title = "Manual Spam",
+                        text = "OFF",
+                        duration = 2
+                    })
+                end
+            end
+        end
+    end
+})
+
+manual_spam_module:create_checkbox({
+    title = "Notify",
+    flag = "ManualSpamNotify",
+    callback = function(value)
+        getgenv().ManualSpamNotify = value
+    end
+})
+
+manual_spam_module:create_dropdown({
+    title = "Mode",
+    flag = "manualspam_mode",
+    options = {"Remote", "Keypress"},
+    default = "Remote",
+    multi_dropdown = false,
+    maximum_options = 2,
+    callback = function(value)
+        getgenv().ManualSpamMode = value
+    end
+})
+
+manual_spam_module:create_checkbox({
+    title = "Animation Fix",
+    flag = "ManualSpamAnimationFix",
+    callback = function(value)
+        getgenv().ManualSpamAnimationFix = value
+    end
+})
+
+local auto_spam_module = set:create_module({
+    title = 'Auto Spam',
+    flag = 'Auto_Spam_Parry',
+    description = 'Automatically spam parries ball ',
+    section = 'right',
+    callback = function(value)
+        System.__properties.__auto_spam_enabled = value
+        if value then
+            System.auto_spam.start()
+            if getgenv().AutoSpamNotify then
+                Library.SendNotification({
+                    title = "Auto Spam",
+                    text = "ON (100K CPS)",
+                    duration = 2
+                })
+            end
+        else
+            System.auto_spam.stop()
+            if getgenv().AutoSpamNotify then
+                Library.SendNotification({
+                    title = "Auto Spam",
+                    text = "OFF",
+                    duration = 2
+                })
+            end
+        end
+    end
+})
+
+auto_spam_module:create_checkbox({
+    title = "Notify",
+    flag = "Auto_Spam_Notify",
+    callback = function(value)
+        getgenv().AutoSpamNotify = value
+    end
+})
+
+auto_spam_module:create_dropdown({
+    title = "Mode",
+    flag = "autospam_mode",
+    options = {"Remote", "Keypress"},
+    default = "Remote",
+    multi_dropdown = false,
+    maximum_options = 2,
+    callback = function(value)
+        getgenv().AutoSpamMode = value
+    end
+})
+
+auto_spam_module:create_checkbox({
+    title = "Animation Fix",
+    flag = "AutoSpamAnimationFix",
+    callback = function(value)
+        getgenv().AutoSpamAnimationFix = value
+    end
+})
+
+auto_spam_module:AddSlider({
+    Title = "Slider",
+    Min = 0,
+    Max = 100,
+    Default = 50,
+    Increment = 1,
+    Callback = function(value)
+        System.__properties.__spam_threshold = value
+    end
+})
+
+auto_spam_module:AddSlider({
+    Title = "Slider",
+    Min = 0,
+    Max = 100,
+    Default = 50,
+    Increment = 1,
+    Callback = function(value)
+        System.__properties.__auto_spam_distance_multiplier = value
+    end
+})
+
+local __players = cloneref(game:GetService('Players'))
+local __localplayer = __players.LocalPlayer
+
+local __flags = {}
+
+local function __apparence(__name)
+    local s, e = pcall(function()
+        local __id = __players:GetUserIdFromNameAsync(__name)
+        return __players:GetHumanoidDescriptionFromUserId(__id)
+    end)
+
+    if not s then
+        return nil
+    end
+
+    return e
+end
+
+local function __set(__name, __char)
+    if not __name or __name == '' then
+        return
+    end
+    
+    local __hum = __char and __char:WaitForChild('Humanoid', 5)
+
+    if not __hum or not __hum:IsDescendantOf(game) then
+        return
+    end
+
+    local __desc = __apparence(__name)
+    
+    if not __desc then
+        warn("Failed to get appearance for: " .. tostring(__name))
+        return
+    end
+
+    -- Verificação extra de segurança para o DataModel
+    local success, err = pcall(function()
+        if __hum and __hum.Parent and __hum:IsDescendantOf(game) then
+            __localplayer:ClearCharacterAppearance()
+            __hum:ApplyDescriptionClientServer(__desc)
+        end
+    end)
+
+    if not success then
+        warn("ApplyDescription failed: " .. tostring(err))
+    end
+end
+
+local module = pl:create_module({
+    title = 'Avatar Changer',
+    flag = 'AvatarChanger',
+    description = 'Change your avatar to another player',
+    section = 'left',
+    callback = function(val)
+        __flags['Skin Changer'] = val
+
+        if val then
+            local __char = __localplayer.Character
+
+            if __char and __flags['name'] then
+                __set(__flags['name'], __char)
+            end
+
+            __flags['loop'] = __localplayer.CharacterAdded:Connect(function(char)
+                task.wait(.75)
+                if __flags['name'] then
+                    __set(__flags['name'], char)
+                end
+            end)
+        else
+            if __flags['loop'] then
+                __flags['loop']:Disconnect()
+                __flags['loop'] = nil
+
+                local __char = __localplayer.Character
+
+                if __char then
+                    __set(__localplayer.Name, __char)
+                end
+            end
+        end
+    end
+})
+
+module:create_textbox({
+    title = "Target Username",
+    placeholder = "Enter Username...",
+    flag = "AvatarChangerTextbox",
+    callback = function(val: string)
+        __flags['name'] = val
+        
+        if __flags['Skin Changer'] and val ~= '' then
+            local __char = __localplayer.Character
+            if __char then
+                __set(val, __char)
+            end
+        end
+    end
+})
+
+local function create_animation(object, info, value)
+    local animation = game:GetService('TweenService'):Create(object, info, value)
+    animation:Play()
+    task.wait(info.Time)
+    animation:Destroy()
+end
+
+local animation_system = {
+    storage = {},
+    current = nil,
+    track = nil
+}
+
+function animation_system.load_animations()
+    local emotes_folder = game:GetService("ReplicatedStorage").Misc.Emotes
+    
+    for _, animation in pairs(emotes_folder:GetChildren()) do
+        if animation:IsA("Animation") and animation:GetAttribute("EmoteName") then
+            local emote_name = animation:GetAttribute("EmoteName")
+            animation_system.storage[emote_name] = animation
+        end
+    end
+end
+
+function animation_system.get_emotes_list()
+    local emotes_list = {}
+    
+    for emote_name in pairs(animation_system.storage) do
+        table.insert(emotes_list, emote_name)
+    end
+    
+    table.sort(emotes_list)
+    return emotes_list
+end
+
+function animation_system.play(emote_name)
+    local animation_data = animation_system.storage[emote_name]
+    
+    if not animation_data or not LocalPlayer.Character then
+        return false
+    end
+    
+    local humanoid = LocalPlayer.Character:FindFirstChild("Humanoid")
+    if not humanoid then
+        return false
+    end
+    
+    local animator = humanoid:FindFirstChild("Animator")
+    if not animator then
+        return false
+    end
+    
+    if animation_system.track then
+        animation_system.track:Stop()
+        animation_system.track:Destroy()
+    end
+    
+    animation_system.track = animator:LoadAnimation(animation_data)
+    animation_system.track:Play()
+    animation_system.current = emote_name
+    
+    return true
+end
+
+function animation_system.stop()
+    if animation_system.track then
+        animation_system.track:Stop()
+        animation_system.track:Destroy()
+        animation_system.track = nil
+    end
+    animation_system.current = nil
+end
+
+function animation_system.start()
+    if not System.__properties.__connections.animations then
+        System.__properties.__connections.animations = RunService.Heartbeat:Connect(function()
+            if not LocalPlayer.Character or not LocalPlayer.Character.PrimaryPart then
+                return
+            end
+            
+            local speed = LocalPlayer.Character.PrimaryPart.AssemblyLinearVelocity.Magnitude
+            
+            if speed > 30 and getgenv().AutoStop then
+                if animation_system.track and animation_system.track.IsPlaying then
+                    animation_system.track:Stop()
+                end
+            else
+                if animation_system.current and (not animation_system.track or not animation_system.track.IsPlaying) then
+                    animation_system.play(animation_system.current)
+                end
+            end
+        end)
+    end
+end
+
+function animation_system.cleanup()
+    animation_system.stop()
+    
+    if System.__properties.__connections.animations then
+        System.__properties.__connections.animations:Disconnect()
+        System.__properties.__connections.animations = nil
+    end
+end
+
+animation_system.load_animations()
+local emotes_data = animation_system.get_emotes_list()
+local selected_animation = emotes_data[1]
+
+local animations_module = pl:create_module({
+    title = 'Emotes',
+    flag = 'Emotes',
+    description = 'Custom Emotes',
+    section = 'right',
+    callback = function(value)
+        getgenv().Animations = value
+        
+        if value then
+            animation_system.start()
+            
+            if selected_animation then
+                animation_system.play(selected_animation)
+            end
+        else
+            animation_system.cleanup()
+        end
+    end
+})
+
+animations_module:create_checkbox({
+    title = "Auto Stop",
+    flag = "AutoStop",
+    callback = function(value)
+        getgenv().AutoStop = value
+    end
+})
+
+local animation_dropdown = animations_module:AddDropdown({
+    Title = "Dropdown",
+    Options = {'Option1', 'Option2'},
+    Default = "Option1",
+    Callback = function(value)
+        selected_animation = value
+        
+        if getgenv().Animations then
+            animation_system.play(value)
+        end
+})
+
+animation_dropdown:update(selected_animation)
+
+local CameraToggle = pl:create_module({
+    title = 'FOV',
+    flag = 'FOV',
+    
+    description = 'Changes Camera POV',
+    section = 'left',
+    
+    callback = function(value)
+        getgenv().CameraEnabled = value
+        local Camera = game:GetService("Workspace").CurrentCamera
+    
+        if value then
+            getgenv().CameraFOV = getgenv().CameraFOV or 70
+            Camera.FieldOfView = getgenv().CameraFOV
+                
+            if not getgenv().FOVLoop then
+                getgenv().FOVLoop = game:GetService("RunService").RenderStepped:Connect(function()
+                    if getgenv().CameraEnabled then
+                        Camera.FieldOfView = getgenv().CameraFOV
+                    end
+                end)
+            end
+        else
+            Camera.FieldOfView = 70
+                
+            if getgenv().FOVLoop then
+                getgenv().FOVLoop:Disconnect()
+                getgenv().FOVLoop = nil
+            end
+        end
+    end
+})
+    
+CameraToggle:AddSlider({
+    Title = "Slider",
+    Min = 0,
+    Max = 100,
+    Default = 50,
+    Increment = 1,
+    Callback = function(value)
+        getgenv().CameraFOV = value
+        if getgenv().CameraEnabled then
+            game:GetService("Workspace").CurrentCamera.FieldOfView = value
+        end
+})
+
+local CharacterModifier = pl:create_module({
+    title = 'Character',
+    flag = 'CharacterModifier',
+    description = 'Changes various character properties',
+    section = 'right',
+
+    callback = function(value)
+        getgenv().CharacterModifierEnabled = value
+
+        if value then
+            if not getgenv().CharacterConnection then
+                getgenv().OriginalValues = {}
+                getgenv().spinAngle = 0
+                
+                getgenv().CharacterConnection = RunService.Heartbeat:Connect(function()
+                    local char = LocalPlayer.Character
+                    if not char then return end
+                    
+                    local humanoid = char:FindFirstChild("Humanoid")
+                    local root = char:FindFirstChild("HumanoidRootPart")
+                    
+                    if humanoid then
+                        if not getgenv().OriginalValues.WalkSpeed then
+                            getgenv().OriginalValues.WalkSpeed = humanoid.WalkSpeed
+                            getgenv().OriginalValues.JumpPower = humanoid.JumpPower
+                            getgenv().OriginalValues.JumpHeight = humanoid.JumpHeight
+                            getgenv().OriginalValues.HipHeight = humanoid.HipHeight
+                            getgenv().OriginalValues.AutoRotate = humanoid.AutoRotate
+                        end
+                        
+                        if getgenv().WalkspeedCheckboxEnabled then
+                            CharacterProtection.SetWalkSpeed(getgenv().CustomWalkSpeed or 36)
+                        end
+                        
+                        if getgenv().JumpPowerCheckboxEnabled then
+                            if humanoid.UseJumpPower then
+                                CharacterProtection.SetJumpPower(getgenv().CustomJumpPower or 50)
+                            else
+                                CharacterProtection.SetEnabled(false)
+                                humanoid.JumpHeight = getgenv().CustomJumpHeight or 7.2
+                                task.wait(0.05)
+                                CharacterProtection.SetEnabled(true)
+                            end
+                        end
+                        
+                        if getgenv().HipHeightCheckboxEnabled then
+                            CharacterProtection.SetHipHeight(getgenv().CustomHipHeight or 0)
+                        end
+
+                        if getgenv().SpinbotCheckboxEnabled and root then
+                            CharacterProtection.SetEnabled(false)
+                            humanoid.AutoRotate = false
+                            getgenv().spinAngle = (getgenv().spinAngle + (getgenv().CustomSpinSpeed or 5)) % 360
+                            root.CFrame = CFrame.new(root.Position) * CFrame.Angles(0, math.rad(getgenv().spinAngle), 0)
+                            task.wait(0.05)
+                            CharacterProtection.SetEnabled(true)
+                        else
+                            if getgenv().OriginalValues.AutoRotate ~= nil then
+                                CharacterProtection.SetEnabled(false)
+                                humanoid.AutoRotate = getgenv().OriginalValues.AutoRotate
+                                task.wait(0.05)
+                                CharacterProtection.SetEnabled(true)
+                            end
+                        end
+                    end
+                    
+                    if getgenv().GravityCheckboxEnabled and getgenv().CustomGravity then
+                        workspace.Gravity = getgenv().CustomGravity
+                    end
+                end)
+            end
+        else
+            if getgenv().CharacterConnection then
+                getgenv().CharacterConnection:Disconnect()
+                getgenv().CharacterConnection = nil
+                
+                local char = LocalPlayer.Character
+                if char then
+                    local humanoid = char:FindFirstChild("Humanoid")
+                    
+                    if humanoid and getgenv().OriginalValues then
+                        CharacterProtection.SetWalkSpeed(getgenv().OriginalValues.WalkSpeed or 16)
+                        
+                        if humanoid.UseJumpPower then
+                            CharacterProtection.SetJumpPower(getgenv().OriginalValues.JumpPower or 50)
+                        else
+                            CharacterProtection.SetEnabled(false)
+                            humanoid.JumpHeight = getgenv().OriginalValues.JumpHeight or 7.2
+                            task.wait(0.05)
+                            CharacterProtection.SetEnabled(true)
+                        end
+                        
+                        CharacterProtection.SetHipHeight(getgenv().OriginalValues.HipHeight or 0)
+                        
+                        CharacterProtection.SetEnabled(false)
+                        humanoid.AutoRotate = getgenv().OriginalValues.AutoRotate or true
+                        task.wait(0.05)
+                        CharacterProtection.SetEnabled(true)
+                    end
+                end
+                
+                workspace.Gravity = 196.2
+                
+                if getgenv().InfiniteJumpConnection then
+                    getgenv().InfiniteJumpConnection:Disconnect()
+                    getgenv().InfiniteJumpConnection = nil
+                end
+                
+                getgenv().OriginalValues = nil
+                getgenv().spinAngle = nil
+            end
+        end
+    end
+})
+
+CharacterModifier:create_checkbox({
+    title = "Infinite Jump",
+    flag = "InfiniteJumpCheckbox",
+    callback = function(value)
+        getgenv().InfiniteJumpCheckboxEnabled = value
+        
+        if value and getgenv().CharacterModifierEnabled then
+            if not getgenv().InfiniteJumpConnection then
+                getgenv().InfiniteJumpConnection = UserInputService.JumpRequest:Connect(function()
+                    if getgenv().InfiniteJumpCheckboxEnabled and getgenv().CharacterModifierEnabled then
+                        local char = LocalPlayer.Character
+                        if char and char:FindFirstChild("Humanoid") then
+                            char.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                        end
+                    end
+                end)
+            end
+        else
+            if getgenv().InfiniteJumpConnection then
+                getgenv().InfiniteJumpConnection:Disconnect()
+                getgenv().InfiniteJumpConnection = nil
+            end
+        end
+    end
+})
+
+CharacterModifier:create_divider({})
+
+CharacterModifier:create_checkbox({
+    title = "Spin",
+    flag = "SpinbotCheckbox",
+    callback = function(value)
+        getgenv().SpinbotCheckboxEnabled = value
+        
+        if not value and getgenv().CharacterModifierEnabled then
+            local char = LocalPlayer.Character
+            if char and char:FindFirstChild("Humanoid") and getgenv().OriginalValues then
+                char.Humanoid.AutoRotate = getgenv().OriginalValues.AutoRotate or true
+            end
+        end
+    end
+})
+
+CharacterModifier:AddSlider({
+    Title = "Slider",
+    Min = 0,
+    Max = 100,
+    Default = 50,
+    Increment = 1,
+    Callback = function(value)
+        getgenv().CustomSpinSpeed = value
+    end
+})
+
+CharacterModifier:create_divider({})
+
+CharacterModifier:create_checkbox({
+    title = "Walk Speed",
+    flag = "WalkspeedCheckbox",
+    callback = function(value)
+        getgenv().WalkspeedCheckboxEnabled = value
+        
+        if not value and getgenv().CharacterModifierEnabled then
+            local char = LocalPlayer.Character
+            if char and char:FindFirstChild("Humanoid") and getgenv().OriginalValues then
+                char.Humanoid.WalkSpeed = getgenv().OriginalValues.WalkSpeed or 16
+            end
+        end
+    end
+})
+
+CharacterModifier:AddSlider({
+    Title = "Slider",
+    Min = 0,
+    Max = 100,
+    Default = 50,
+    Increment = 1,
+    Callback = function(value)
+        getgenv().CustomWalkSpeed = value
+        
+        if getgenv().CharacterModifierEnabled and getgenv().WalkspeedCheckboxEnabled then
+            local char = LocalPlayer.Character
+            if char and char:FindFirstChild("Humanoid") then
+                char.Humanoid.WalkSpeed = value
+            end
+})
+
+CharacterModifier:create_divider({})
+
+CharacterModifier:create_checkbox({
+    title = "Jump Power",
+    flag = "JumpPowerCheckbox",
+    callback = function(value)
+        getgenv().JumpPowerCheckboxEnabled = value
+        
+        if not value and getgenv().CharacterModifierEnabled then
+            local char = LocalPlayer.Character
+            if char and char:FindFirstChild("Humanoid") and getgenv().OriginalValues then
+                local humanoid = char.Humanoid
+                if humanoid.UseJumpPower then
+                    humanoid.JumpPower = getgenv().OriginalValues.JumpPower or 50
+                else
+                    humanoid.JumpHeight = getgenv().OriginalValues.JumpHeight or 7.2
+                end
+            end
+        end
+    end
+})
+
+CharacterModifier:AddSlider({
+    Title = "Slider",
+    Min = 0,
+    Max = 100,
+    Default = 50,
+    Increment = 1,
+    Callback = function(value)
+        getgenv().CustomJumpPower = value
+        getgenv().CustomJumpHeight = value * 0.144
+        
+        if getgenv().CharacterModifierEnabled and getgenv().JumpPowerCheckboxEnabled then
+            local char = LocalPlayer.Character
+            if char and char:FindFirstChild("Humanoid") then
+                local humanoid = char.Humanoid
+                if humanoid.UseJumpPower then
+                    humanoid.JumpPower = value
+                else
+                    humanoid.JumpHeight = value * 0.144
+                end
+})
+
+CharacterModifier:create_divider({})
+
+CharacterModifier:create_checkbox({
+    title = "Gravity",
+    flag = "GravityCheckbox",
+    callback = function(value)
+        getgenv().GravityCheckboxEnabled = value
+        
+        if not value and getgenv().CharacterModifierEnabled then
+            workspace.Gravity = 196.2
+        end
+    end
+})
+
+CharacterModifier:AddSlider({
+    Title = "Slider",
+    Min = 0,
+    Max = 100,
+    Default = 50,
+    Increment = 1,
+    Callback = function(value)
+        getgenv().CustomGravity = value
+        
+        if getgenv().CharacterModifierEnabled and getgenv().GravityCheckboxEnabled then
+            workspace.Gravity = value
+        end
+})
+
+CharacterModifier:create_divider({})
+
+CharacterModifier:create_checkbox({
+    title = "Hip Height",
+    flag = "HipHeightCheckbox",
+    callback = function(value)
+        getgenv().HipHeightCheckboxEnabled = value
+        
+        if not value and getgenv().CharacterModifierEnabled then
+            local char = LocalPlayer.Character
+            if char and char:FindFirstChild("Humanoid") and getgenv().OriginalValues then
+                char.Humanoid.HipHeight = getgenv().OriginalValues.HipHeight or 0
+            end
+        end
+    end
+})
+
+CharacterModifier:AddSlider({
+    Title = "Slider",
+    Min = 0,
+    Max = 100,
+    Default = 50,
+    Increment = 1,
+    Callback = function(value)
+        getgenv().CustomHipHeight = value
+        
+        if getgenv().CharacterModifierEnabled and getgenv().HipHeightCheckboxEnabled then
+            local char = LocalPlayer.Character
+            if char and char:FindFirstChild("Humanoid") then
+                char.Humanoid.HipHeight = value
+            end
+})
+
+local ability_esp = {
+    __config = {
+        gui_name = "AbilityESPGui",
+        gui_size = UDim2.new(0, 200, 0, 40),
+        studs_offset = Vector3.new(0, 3.2, 0),
+        text_color = Color3.fromRGB(255, 255, 255),
+        stroke_color = Color3.fromRGB(0, 0, 0),
+        font = Enum.Font.GothamBold,
+        text_size = 14,
+        update_rate = 1/30
+    },
+    
+    __state = {
+        active = false,
+        players = {},
+        update_task = nil
+    }
+}
+
+function ability_esp.create_billboard(player)
+    local character = player.Character
+    if not character or not character.Parent then 
+        return nil
+    end
+    
+    local humanoid = character:FindFirstChild("Humanoid")
+    if not humanoid then
+        return nil
+    end
+    
+    local head = character:FindFirstChild("Head")
+    if not head then
+        return nil
+    end
+    
+    local existing = head:FindFirstChild(ability_esp.__config.gui_name)
+    if existing then
+        existing:Destroy()
+    end
+    
+    local billboard = Instance.new("BillboardGui")
+    billboard.Name = ability_esp.__config.gui_name
+    billboard.Adornee = head
+    billboard.Size = ability_esp.__config.gui_size
+    billboard.StudsOffset = ability_esp.__config.studs_offset
+    billboard.AlwaysOnTop = true
+    billboard.Parent = head
+    
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, 0, 1, 0)
+    label.BackgroundTransparency = 1
+    label.TextColor3 = ability_esp.__config.text_color
+    label.TextStrokeColor3 = ability_esp.__config.stroke_color
+    label.TextStrokeTransparency = 0.5
+    label.Font = ability_esp.__config.font
+    label.TextSize = ability_esp.__config.text_size
+    label.TextWrapped = true
+    label.TextXAlignment = Enum.TextXAlignment.Center
+    label.TextYAlignment = Enum.TextYAlignment.Center
+    label.Parent = billboard
+    
+    humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
+    
+    return label, billboard
+end
+
+function ability_esp.update_label(player, label)
+    if not player or not player.Parent or not label or not label.Parent then
+        return false
+    end
+    
+    local character = player.Character
+    if not character or not character.Parent or not character:FindFirstChild("Humanoid") then
+        return false
+    end
+    
+    if ability_esp.__state.active then
+        label.Visible = true
+        local ability_name = player:GetAttribute("EquippedAbility")
+        label.Text = ability_name and 
+            (player.DisplayName .. "  [" .. ability_name .. "]") or 
+            player.DisplayName
+    else
+        label.Visible = false
+    end
+    
+    return true
+end
+
+function ability_esp.setup_character(player)
+    if not ability_esp.__state.active then
+        return
+    end
+    
+    task.wait(0.1)
+    
+    local character = player.Character
+    if not character or not character.Parent or not character:FindFirstChild("Humanoid") then
+        return
+    end
+    
+    local label, billboard = ability_esp.create_billboard(player)
+    if not label then
+        return
+    end
+    
+    if not ability_esp.__state.players[player] then
+        ability_esp.__state.players[player] = {}
+    end
+    
+    ability_esp.__state.players[player].label = label
+    ability_esp.__state.players[player].billboard = billboard
+    ability_esp.__state.players[player].character = character
+    
+    local char_connection = character.AncestryChanged:Connect(function()
+        if not character.Parent then
+            if ability_esp.__state.players[player] then
+                if ability_esp.__state.players[player].billboard then
+                    ability_esp.__state.players[player].billboard:Destroy()
+                end
+                ability_esp.__state.players[player].label = nil
+                ability_esp.__state.players[player].billboard = nil
+                ability_esp.__state.players[player].character = nil
+            end
+        end
+    end)
+    
+    if not System.__properties.__connections.ability_esp then
+        System.__properties.__connections.ability_esp = {}
+    end
+    
+    if not System.__properties.__connections.ability_esp[player] then
+        System.__properties.__connections.ability_esp[player] = {}
+    end
+    
+    System.__properties.__connections.ability_esp[player].char_removing = char_connection
+end
+
+function ability_esp.add_player(player)
+    if player == LocalPlayer then
+        return
+    end
+    
+    if ability_esp.__state.players[player] then
+        ability_esp.remove_player(player)
+    end
+    
+    if not System.__properties.__connections.ability_esp then
+        System.__properties.__connections.ability_esp = {}
+    end
+    
+    if not System.__properties.__connections.ability_esp[player] then
+        System.__properties.__connections.ability_esp[player] = {}
+    end
+    
+    local char_added_connection = player.CharacterAdded:Connect(function()
+        ability_esp.setup_character(player)
+    end)
+    
+    System.__properties.__connections.ability_esp[player].char_added = char_added_connection
+    
+    if player.Character then
+        task.spawn(function()
+            ability_esp.setup_character(player)
+        end)
+    end
+end
+
+function ability_esp.remove_player(player)
+    if System.__properties.__connections.ability_esp and System.__properties.__connections.ability_esp[player] then
+        for _, connection in pairs(System.__properties.__connections.ability_esp[player]) do
+            if connection and connection.Connected then
+                connection:Disconnect()
+            end
+        end
+        System.__properties.__connections.ability_esp[player] = nil
+    end
+    
+    local player_data = ability_esp.__state.players[player]
+    if player_data then
+        if player_data.billboard then
+            player_data.billboard:Destroy()
+        end
+        ability_esp.__state.players[player] = nil
+    end
+end
+
+function ability_esp.update_loop()
+    while ability_esp.__state.active do
+        task.wait(ability_esp.__config.update_rate)
+        
+        local players_to_remove = {}
+        
+        for player, player_data in pairs(ability_esp.__state.players) do
+            if not player or not player.Parent then
+                table.insert(players_to_remove, player)
+                continue
+            end
+            
+            local character = player.Character
+            if not character or not character.Parent or not character:FindFirstChild("Humanoid") then
+                if player_data.billboard then
+                    player_data.billboard:Destroy()
+                    player_data.billboard = nil
+                    player_data.label = nil
+                end
+                continue
+            end
+            
+            if not player_data.billboard or not player_data.label then
+                local label, billboard = ability_esp.create_billboard(player)
+                if label then
+                    player_data.label = label
+                    player_data.billboard = billboard
+                    player_data.character = character
+                end
+            end
+            
+            if player_data.label then
+                local success = ability_esp.update_label(player, player_data.label)
+                if not success then
+                    local label, billboard = ability_esp.create_billboard(player)
+                    if label then
+                        player_data.label = label
+                        player_data.billboard = billboard
+                        player_data.character = character
+                    end
+                end
+            end
+        end
+        
+        for _, player in ipairs(players_to_remove) do
+            if ability_esp.__state.players[player] then
+                if ability_esp.__state.players[player].billboard then
+                    ability_esp.__state.players[player].billboard:Destroy()
+                end
+                ability_esp.__state.players[player] = nil
+            end
+        end
+    end
+end
+
+function ability_esp.start()
+    if ability_esp.__state.active then
+        return
+    end
+    
+    ability_esp.__state.active = true
+    getgenv().AbilityESP = true
+    
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            ability_esp.add_player(player)
+        end
+    end
+    
+    if not System.__properties.__connections.ability_esp then
+        System.__properties.__connections.ability_esp = {}
+    end
+    
+    System.__properties.__connections.ability_esp.player_added = Players.PlayerAdded:Connect(function(player)
+        if ability_esp.__state.active and player ~= LocalPlayer then
+            task.wait(1)
+            ability_esp.add_player(player)
+        end
+    end)
+    
+    ability_esp.__state.update_task = task.spawn(function()
+        ability_esp.update_loop()
+    end)
+end
+
+function ability_esp.stop()
+    if not ability_esp.__state.active then
+        return
+    end
+    
+    ability_esp.__state.active = false
+    getgenv().AbilityESP = false
+    
+    if ability_esp.__state.update_task then
+        task.cancel(ability_esp.__state.update_task)
+        ability_esp.__state.update_task = nil
+    end
+    
+    if System.__properties.__connections.ability_esp then
+        for player, connections in pairs(System.__properties.__connections.ability_esp) do
+            if type(connections) == "table" then
+                for _, connection in pairs(connections) do
+                    if connection and connection.Connected then
+                        connection:Disconnect()
+                    end
+                end
+            elseif connections and connections.Connected then
+                connections:Disconnect()
+            end
+        end
+        
+        System.__properties.__connections.ability_esp = nil
+    end
+    
+    for player in pairs(ability_esp.__state.players) do
+        ability_esp.remove_player(player)
+    end
+end
+
+function ability_esp.toggle(value)
+    if value then
+        ability_esp.start()
+    else
+        ability_esp.stop()
+    end
+end
+
+visuals:create_module({
+    title = 'Ability ESP',
+    flag = 'AbilityESP',
+    description = 'Displays Player Abilities',
+    section = 'left',
+    callback = function(value)
+        ability_esp.toggle(value)
+    end
+})
+
+function System.create_ball_velocity_gui()
+    if System.__properties.__ball_velocity_gui then
+        System.__properties.__ball_velocity_gui.gui:Destroy()
+    end
+    
+    local gui = Instance.new("ScreenGui")
+    gui.Name = "BallVelocityGUI"
+    gui.ResetOnSpawn = false
+    gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    gui.DisplayOrder = 999
+    
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(0, 220, 0, 80)
+    frame.Position = load_ui_position("BallVelocityGUI", UDim2.new(0, 10, 0, 10))
+    -- Alterado para cinza escuro
+    frame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    frame.BackgroundTransparency = 0.4
+    frame.BorderSizePixel = 0
+    frame.Active = true
+    frame.Selectable = true
+    frame.Draggable = true
+
+    frame:GetPropertyChangedSignal("Position"):Connect(function()
+        save_ui_position("BallVelocityGUI", frame.Position)
+    end)
+    
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 8)
+    corner.Parent = frame
+    
+    local stroke = Instance.new("UIStroke")
+    stroke.Color = ThemeColors.Primary
+    stroke.Thickness = 2
+    stroke.Parent = frame
+    
+    local title = Instance.new("TextLabel")
+    title.Name = "Title"
+    title.Size = UDim2.new(1, 0, 0, 20)
+    title.Position = UDim2.new(0, 0, 0, 5)
+    title.BackgroundTransparency = 1
+    title.Text = "⚡ Ball Velocity"
+    title.TextColor3 = ThemeColors.PrimaryLight
+    title.Font = Enum.Font.GothamBold
+    title.TextSize = 14
+    title.TextStrokeTransparency = 0.8
+    title.TextStrokeColor3 = Color3.new(0, 0, 0)
+    title.Parent = frame
+    
+    local currentSpeedLabel = Instance.new("TextLabel")
+    currentSpeedLabel.Name = "Text"
+    currentSpeedLabel.Size = UDim2.new(1, -10, 0, 25)
+    currentSpeedLabel.Position = UDim2.new(0, 5, 0, 25)
+    currentSpeedLabel.BackgroundTransparency = 1
+    currentSpeedLabel.Text = "Current: 0"
+    currentSpeedLabel.TextColor3 = ThemeColors.PrimaryLight
+    currentSpeedLabel.Font = Enum.Font.GothamBold
+    currentSpeedLabel.TextSize = 16
+    currentSpeedLabel.TextXAlignment = Enum.TextXAlignment.Left
+    currentSpeedLabel.TextStrokeTransparency = 0.7
+    currentSpeedLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
+    currentSpeedLabel.Parent = frame
+    
+    local peakSpeedLabel = Instance.new("TextLabel")
+    peakSpeedLabel.Name = "Text"
+    peakSpeedLabel.Size = UDim2.new(1, -10, 0, 25)
+    peakSpeedLabel.Position = UDim2.new(0, 5, 0, 50)
+    peakSpeedLabel.BackgroundTransparency = 1
+    peakSpeedLabel.Text = "Peak: 0"
+    peakSpeedLabel.TextColor3 = ThemeColors.PrimaryLight
+    peakSpeedLabel.Font = Enum.Font.GothamBold
+    peakSpeedLabel.TextSize = 16
+    peakSpeedLabel.TextXAlignment = Enum.TextXAlignment.Left
+    peakSpeedLabel.TextStrokeTransparency = 0.5
+    peakSpeedLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
+    peakSpeedLabel.Parent = frame
+    
+    frame.Parent = gui
+    gui.Parent = CoreGui
+    
+    System.__properties.__ball_velocity_gui = {
+        gui = gui,
+        frame = frame,
+        currentSpeedLabel = currentSpeedLabel,
+        peakSpeedLabel = peakSpeedLabel
+    }
+end
+
+function System.update_ball_velocity()
+    if not System.__properties.__ball_velocity_enabled or not System.__properties.__ball_velocity_gui then
+        return
+    end
+    
+    local ball = System.ball.get()
+    if not ball then
+        System.__properties.__ball_velocity_gui.currentSpeedLabel.Text = "Current: 0"
+        return
+    end
+    
+    local ballId = ball:GetFullName()
+    if ballId ~= System.__properties.__last_ball_id then
+        System.__properties.__peak_velocity = 0
+        System.__properties.__last_ball_id = ballId
+    end
+    
+    local zoomies = ball:FindFirstChild('zoomies')
+    if not zoomies then
+        System.__properties.__ball_velocity_gui.currentSpeedLabel.Text = "Current: 0"
+        return
+    end
+    
+    local velocity = zoomies.VectorVelocity
+    local speed = velocity.Magnitude
+    
+    if speed > System.__properties.__peak_velocity then
+        System.__properties.__peak_velocity = speed
+    end
+    
+    System.__properties.__ball_velocity_gui.currentSpeedLabel.Text = string.format("Current: %.1f", speed)
+    System.__properties.__ball_velocity_gui.peakSpeedLabel.Text = string.format("Peak: %.1f", System.__properties.__peak_velocity)
+    
+    -- Removida a alteração de cor baseada na velocidade. A cor do texto já é preta fixa.
+end
+
+visuals:create_module({
+    title = 'Ball Velocity',
+    flag = 'Ball_Velocity',
+    description = 'Show ball speed with peak tracking',
+    section = 'right',
+    callback = function(value)
+        System.__properties.__ball_velocity_enabled = value
+        if value then
+            System.create_ball_velocity_gui()
+            
+            if not System.__properties.__connections.__ball_velocity then
+                System.__properties.__connections.__ball_velocity = RunService.RenderStepped:Connect(function()
+                    System.update_ball_velocity()
+                end)
+            end
+        else
+            if System.__properties.__ball_velocity_gui then
+                System.__properties.__ball_velocity_gui.gui:Destroy()
+                System.__properties.__ball_velocity_gui = nil
+            end
+            
+            if System.__properties.__connections.__ball_velocity then
+                System.__properties.__connections.__ball_velocity:Disconnect()
+                System.__properties.__connections.__ball_velocity = nil
+            end
+            
+            System.__properties.__peak_velocity = 0
+            System.__properties.__last_ball_id = nil
+        end
+    end
+})
+
+local MadeInHeaven = {
+    Enabled = false,
+    SkySpeed = 0.5,
+    MaxSkySpeed = 900000,
+    Acceleration = 180,
+    CurrentTime = 12,
+    SoundId = "rbxassetid://5059139543",
+    SoundVolume = 1.5,
+    IsPlayingSound = false,
+    Connection = nil
+}
+
+function MadeInHeaven:play3DSound()
+    local char = LocalPlayer.Character
+    if not char then return end
+    
+    local root = char:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+    
+    self.IsPlayingSound = true
+    
+    local sound = Instance.new("Sound")
+    sound.SoundId = self.SoundId
+    sound.Volume = self.SoundVolume
+    sound.RollOffMode = Enum.RollOffMode.Inverse
+    sound.RollOffMaxDistance = 60
+    sound.RollOffMinDistance = 10
+    sound.EmitterSize = 8
+    sound.Parent = root
+    
+    sound:Play()
+    
+    sound.Ended:Connect(function()
+        sound:Destroy()
+        self.IsPlayingSound = false
+    end)
+end
+
+function MadeInHeaven:activate()
+    if self.Enabled then return end
+    
+    self.Enabled = true
+    self.SkySpeed = 0.5
+    self.CurrentTime = 12
+    
+    local lighting = game:GetService("Lighting")
+    lighting.Brightness = 1.2
+    lighting.OutdoorAmbient = Color3.fromRGB(200, 200, 255)
+    lighting.FogColor = Color3.fromRGB(100, 100, 200)
+    lighting.FogEnd = 10000
+    
+    self:play3DSound()
+    
+    self:startUpdateLoop()
+end
+
+function MadeInHeaven:deactivate()
+    if not self.Enabled then return end
+    
+    self.Enabled = false
+    self.SkySpeed = 0
+    
+    local lighting = game:GetService("Lighting")
+    lighting.Brightness = 1
+    lighting.OutdoorAmbient = Color3.fromRGB(128, 128, 128)
+    lighting.FogColor = Color3.new()
+    lighting.FogEnd = 100000
+    
+    if self.Connection then
+        self.Connection:Disconnect()
+        self.Connection = nil
+    end
+end
+
+function MadeInHeaven:startUpdateLoop()
+    local lighting = game:GetService("Lighting")
+    local runService = game:GetService("RunService")
+    
+    self.Connection = runService.RenderStepped:Connect(function(deltaTime)
+        if not self.Enabled then return end
+        
+        if self.SkySpeed < self.MaxSkySpeed then
+            self.SkySpeed = math.min(self.SkySpeed + (self.Acceleration * deltaTime), self.MaxSkySpeed)
+        end
+        
+        local hoursPerSecond = (self.SkySpeed / 360) * 24
+        local timeIncrement = hoursPerSecond * deltaTime
+        
+        self.CurrentTime = (self.CurrentTime + timeIncrement) % 24
+        lighting.ClockTime = self.CurrentTime
+        
+        local speedRatio = self.SkySpeed / self.MaxSkySpeed
+        
+        lighting.Brightness = 1 + (0.8 * speedRatio)
+        
+        local blueValue = 150 + (105 * speedRatio)
+        local redGreenValue = 150 + (50 * speedRatio)
+        lighting.OutdoorAmbient = Color3.fromRGB(redGreenValue, redGreenValue, blueValue)
+        
+        if speedRatio > 0.3 then
+            lighting.FogStart = 50 * speedRatio
+            lighting.FogEnd = 5000 + (5000 * speedRatio)
+        end
+    end)
+end
+
+visuals:create_module({
+    title = 'Made in Heaven',
+    flag = 'Made_In_Heaven',
+    description = 'Time really does speed up.',
+    section = 'right',
+    callback = function(value)
+        if value then
+            MadeInHeaven:activate()
+        else
+            MadeInHeaven:deactivate()
+        end
+    end
+})
+
+UserInputService.InputBegan:Connect(function(input, processed)
+    if processed then return end
+    
+    if input.KeyCode == Enum.KeyCode.M then
+        if MadeInHeaven.Enabled then
+            MadeInHeaven:deactivate()
+        else
+            MadeInHeaven:activate()
+        end
+    end
+end)
+
+local KillSoundSystem = {
+
+    Sounds = {
+        { id = "92076037937225", name = "Fahhhh", length = 4 },
+        { id = "96664488756631", name = "Very angry", length = 4 },
+        { id = "116957716755028", name = "Leave me alone", length = 4 },
+        { id = "8643750815", name = "Get over here", length = 4 },
+        { id = "93779555057888", name = "HEHEHE HA", length = 4 },
+        { id = "84233173598772", name = "Head shot", length = 4 },
+        { id = "8097518145", name = "Lesgoo", length = 4 },
+        { id = "6512108316", name = "I back", length = 4 },
+        { id = "27274429332", name = "Fatality", length = 4 },
+        { id = "6011094380", name = "Pans", length = 4 },
+        { id = "7616380887", name = "Bruh", length = 4 },
+        { id = "9070284921", name = "Beautiful girl", length = 4 },
+        { id = "5409360995", name = "DION TIMMER SHIAWASE", length = 4 }
+    },
+
+    __state = {
+        enabled = false,
+        selected_sound = "92076037937225",
+        last_kill_time = 0,
+        kill_cooldown = 0.3,
+        current_sound = nil
+    },
+
+    __connections = {}
+}
+
+function KillSoundSystem.stop()
+    if KillSoundSystem.__state.current_sound then
+        pcall(function()
+            KillSoundSystem.__state.current_sound:Stop()
+            KillSoundSystem.__state.current_sound:Destroy()
+        end)
+        KillSoundSystem.__state.current_sound = nil
+    end
+end
+
+function KillSoundSystem.play(position)
+    KillSoundSystem.stop()
+
+    local data
+    for _, s in ipairs(KillSoundSystem.Sounds) do
+        if s.id == KillSoundSystem.__state.selected_sound then
+            data = s
+            break
+        end
+    end
+    if not data then return end
+
+    local part = Instance.new("Part")
+    part.Anchored = true
+    part.CanCollide = false
+    part.Transparency = 1
+    part.Size = Vector3.new(0.1, 0.1, 0.1)
+    part.Position = position
+    part.Parent = workspace
+
+    local sound = Instance.new("Sound")
+    sound.SoundId = "rbxassetid://" .. data.id
+    sound.Volume = 0.7
+    sound.RollOffMode = Enum.RollOffMode.Linear
+    sound.MaxDistance = 500
+    sound.Parent = part
+
+    KillSoundSystem.__state.current_sound = sound
+    sound:Play()
+
+    Debris:AddItem(part, data.length + 0.5)
+end
+
+function KillSoundSystem.onKill(character)
+    if not KillSoundSystem.__state.enabled then return end
+
+    local now = tick()
+    if now - KillSoundSystem.__state.last_kill_time < KillSoundSystem.__state.kill_cooldown then
+        return
+    end
+    KillSoundSystem.__state.last_kill_time = now
+
+    local pos = character.PrimaryPart
+        and character.PrimaryPart.Position
+        or workspace.CurrentCamera.CFrame.Position
+
+    KillSoundSystem.play(pos)
+end
+
+function KillSoundSystem.hookPlayer(player)
+    local function onChar(char)
+        local hum = char:WaitForChild("Humanoid", 5)
+        if hum then
+            hum.Died:Connect(function()
+                if player ~= LocalPlayer then
+                    KillSoundSystem.onKill(char)
+                end
+            end)
+        end
+    end
+
+    if player.Character then
+        onChar(player.Character)
+    end
+    player.CharacterAdded:Connect(onChar)
+end
+
+function KillSoundSystem.enable()
+    for _, p in ipairs(Players:GetPlayers()) do
+        KillSoundSystem.hookPlayer(p)
+    end
+
+    KillSoundSystem.__connections.playerAdded =
+        Players.PlayerAdded:Connect(function(p)
+            KillSoundSystem.hookPlayer(p)
+        end)
+end
+
+function KillSoundSystem.disable()
+    KillSoundSystem.stop()
+    for _, c in pairs(KillSoundSystem.__connections) do
+        pcall(function() c:Disconnect() end)
+    end
+    KillSoundSystem.__connections = {}
+end
+
+local ui_settings_module = misc:create_module({
+    title = 'UI Settings',
+    flag = 'UI_Settings',
+    description = 'Customize the script appearance',
+    section = 'left',
+    callback = function() end
+})
+
+local theme_names = {}
+local themes = getgenv().UIThemes or {}
+for name, _ in pairs(themes) do
+    table.insert(theme_names, name)
+end
+table.sort(theme_names)
+
+ui_settings_module:AddDropdown({
+    Title = "Dropdown",
+    Options = {'Option1', 'Option2'},
+    Default = "Option1",
+    Callback = function(value)
+        getgenv().ApplyTheme(value)
+    end
+})
+
+ui_settings_module:create_color_picker({
+    title = "Custom Primary",
+    flag = "custom_theme_primary",
+    default = Color3.fromRGB(255, 255, 255),
+    callback = function(color)
+        getgenv().UIThemes["Custom"].Primary = color
+        getgenv().UIThemes["Custom"].Border = color
+        if Library._config._flags["ui_theme_selection"] == "Custom" then
+            getgenv().ApplyTheme("Custom")
+        end
+    end
+})
+
+ui_settings_module:create_color_picker({
+    title = "Custom Accent",
+    flag = "custom_theme_accent",
+    default = Color3.fromRGB(255, 255, 255),
+    callback = function(color)
+        getgenv().UIThemes["Custom"].Accent = color
+        if Library._config._flags["ui_theme_selection"] == "Custom" then
+            getgenv().ApplyTheme("Custom")
+        end
+    end
+})
+
+ui_settings_module:create_color_picker({
+    title = "Custom Light",
+    flag = "custom_theme_light",
+    default = Color3.fromRGB(255, 255, 255),
+    callback = function(color)
+        getgenv().UIThemes["Custom"].PrimaryLight = color
+        if Library._config._flags["ui_theme_selection"] == "Custom" then
+            getgenv().ApplyTheme("Custom")
+        end
+    end
+})
+
+ui_settings_module:create_color_picker({
+    title = "Custom Dark",
+    flag = "custom_theme_dark",
+    default = Color3.fromRGB(200, 200, 200),
+    callback = function(color)
+        getgenv().UIThemes["Custom"].PrimaryDark = color
+        if Library._config._flags["ui_theme_selection"] == "Custom" then
+            getgenv().ApplyTheme("Custom")
+        end
+    end
+})
+
+ui_settings_module:create_divider({})
+
+local killSoundModule = misc:create_module({
+    title = 'Kill Sound',
+    flag = 'Kill_Sound',
+    description = 'Plays sound when you kill someone',
+    section = 'left',
+    callback = function(value)
+        getgenv().killSoundEnabled = value
+        if value then
+            KillSoundSystem.enable()
+            Library.SendNotification({
+                title = "Kill Sound",
+                text = "ON",
+                duration = 2
+            })
+        else
+            KillSoundSystem.disable()
+            Library.SendNotification({
+                title = "Kill Sound",
+                text = "OFF",
+                duration = 2
+            })
+        end
+    end
+})
+
+local sound_options = {}
+for _, s in ipairs(KillSoundSystem.Sounds) do
+    table.insert(sound_options, s.name)
+end
+
+killSoundModule:AddDropdown({
+    Title = "Dropdown",
+    Options = {'Option1', 'Option2'},
+    Default = "Option1",
+    Callback = function(value)
+        for _, s in ipairs(KillSoundSystem.Sounds) do
+            if s.name == value then
+                KillSoundSystem.__state.selected_sound = s.id
+                Library.Send
+})
+                break
+            end
+        end
+    end
+})
+
+local No_Render = misc:create_module({
+    title = 'No Render',
+    flag = 'No_Render',
+    description = 'Disables rendering of effects',
+    section = 'left',
+    
+    callback = function(state)
+        LocalPlayer.PlayerScripts.EffectScripts.ClientFX.Disabled = state
+
+        if state then
+            Connections_Manager['No Render'] = workspace.Runtime.ChildAdded:Connect(function(Value)
+                Debris:AddItem(Value, 0)
+            end)
+        else
+            if Connections_Manager['No Render'] then
+                Connections_Manager['No Render']:Disconnect()
+                Connections_Manager['No Render'] = nil
+            end
+        end
+    end
+})
+
+if No_Render and No_Render.change_state then 
+    No_Render:change_state(false) 
+end
+
+--====================================================
+-- CLONE ANT LAG LOCAL | TOGGLE CONTROLADO
+-- SPEED FIXO 40 | CLIENT ONLY
+--====================================================
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+local camera = workspace.CurrentCamera
+
+local character
+local humanoid
+local root
+
+local clone
+local cloneHumanoid
+local cloneRoot
+
+local running = false
+local moveConn
+
+----------------------------------------------------
+-- FUNÇÕES BASE
+----------------------------------------------------
+local function getChar()
+    character = player.Character or player.CharacterAdded:Wait()
+    humanoid = character:WaitForChild("Humanoid")
+    root = character:WaitForChild("HumanoidRootPart")
+end
+
+local function createClone()
+    local c = character:Clone()
+    c.Name = "VisualClone"
+    c.Parent = workspace
+
+    for _, v in ipairs(c:GetDescendants()) do
+        if v:IsA("Script") or v:IsA("LocalScript") then
+            v:Destroy()
+        elseif v:IsA("BasePart") then
+            v.CanCollide = false
+            v.Massless = true
+            v.Anchored = false
+        end
+    end
+
+    cloneHumanoid = c:FindFirstChildOfClass("Humanoid")
+    cloneRoot = c:FindFirstChild("HumanoidRootPart")
+
+    cloneHumanoid.WalkSpeed = 40
+    cloneHumanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
+    cloneHumanoid:ChangeState(Enum.HumanoidStateType.Physics)
+
+    c:SetPrimaryPartCFrame(root.CFrame)
+    return c
+end
+
+----------------------------------------------------
+-- ATIVAR CLONE
+----------------------------------------------------
+local function enableClone()
+    if running then return end
+    running = true
+
+    getChar()
+    clone = createClone()
+
+    -- trava personagem real
+    root.Anchored = true
+    humanoid.AutoRotate = false
+
+    -- câmera no clone (só visual)
+    camera.CameraType = Enum.CameraType.Custom
+    camera.CameraSubject = cloneHumanoid
+
+    -- movimento fixo speed 40
+    moveConn = RunService.RenderStepped:Connect(function(dt)
+        if not running or not cloneRoot then return end
+
+        local dir = humanoid.MoveDirection
+        if dir.Magnitude > 0 then
+            cloneRoot.CFrame =
+                CFrame.new(
+                    cloneRoot.Position + dir.Unit * 40 * dt,
+                    cloneRoot.Position + dir.Unit
+                )
+        end
+    end)
+end
+
+----------------------------------------------------
+-- DESATIVAR CLONE
+----------------------------------------------------
+local function disableClone()
+    running = false
+
+    if moveConn then
+        moveConn:Disconnect()
+        moveConn = nil
+    end
+
+    if clone then
+        clone:Destroy()
+        clone = nil
+    end
+
+    if humanoid and root then
+        root.Anchored = false
+        humanoid.AutoRotate = true
+    end
+
+    camera.CameraSubject = humanoid
+    camera.CameraType = Enum.CameraType.Custom
+end
+
+----------------------------------------------------
+-- MÓDULO RAGE (SEM AUTOPARRY)
+----------------------------------------------------
+local clonelocal_module = misc:create_module({
+    title = 'Clone Ant lag local',
+    flag = 'Clone_Ant_Lag_Local',
+    description = 'Clone visual client-side (Speed fixo 40)',
+    section = 'rigth',
+
+    callback = function(value)
+        if value then
+            enableClone()
+
+            if getgenv().Clone then
+                Library.SendNotification({
+                    title = "Clone Ant lag local",
+                    text = "ON (Clone ativo | Speed 40)",
+                    duration = 3
+                })
+            end
+        else
+            disableClone()
+
+            if getgenv().Clone then
+                Library.SendNotification({
+                    title = "Clone Ant lag local",
+                    text = "OFF (Restaurado)",
+                    duration = 2
+                })
+            end
+        end
+    end
+})
+
+local ParticleSystem = {
+    Particles = {},
+    MaxParticles = 5000,
+    SpawnArea = 500,
+    FallSpeed = 25,
+    SpawnHeight = 100,
+    SpawnRate = 3,
+    ParticleColor = Color3.fromRGB(100, 200, 255),
+    Enabled = false
+}
+
+local ParticlePool = {}
+local MAX_POOL_SIZE = 100
+local ACTIVE_PARTICLES = 0
+
+local CAMERA = workspace.CurrentCamera
+local LocalPlayer = game.Players.LocalPlayer
+local RunService = game:GetService("RunService")
+
+local cachedPlayerPosition = Vector3.zero
+local lastPositionUpdate = 0
+local POSITION_UPDATE_INTERVAL = 0.1
+
+local ParticleFolder = Instance.new("Folder")
+ParticleFolder.Name = "MagicalParticles"
+ParticleFolder.Parent = workspace
+
+local Particles = {}
+
+function Particles.getFromPool()
+    if #ParticlePool > 0 then
+        local particleData = table.remove(ParticlePool)
+        local particle = particleData.part
+        local light = particleData.light
+        local trail = particleData.trail
+        
+        particle.Transparency = 0
+        if light then
+            light.Enabled = true
+        end
+        if trail then
+            trail.Enabled = true
+        end
+        
+        local attachment0 = Instance.new("Attachment")
+        attachment0.Parent = particle
+        
+        local attachment1 = Instance.new("Attachment")
+        attachment1.Parent = particle
+        attachment1.Position = Vector3.new(0, -0.6, 0)
+        
+        if trail then
+            trail.Attachment0 = attachment0
+            trail.Attachment1 = attachment1
+        end
+        
+        return particle, light, trail, {attachment0, attachment1}
+    end
+    return nil, nil, nil, nil
+end
+
+function Particles.returnToPool(particle, light, trail, attachments)
+    if particle then
+        particle.Transparency = 1
+        particle.Position = Vector3.new(0, -1000, 0)
+        
+        if light then
+            light.Enabled = false
+        end
+        if trail then
+            trail.Enabled = false
+        end
+        
+        if attachments then
+            for _, att in ipairs(attachments) do
+                att:Destroy()
+            end
+        end
+        
+        if #ParticlePool < MAX_POOL_SIZE then
+            table.insert(ParticlePool, {
+                part = particle,
+                light = light,
+                trail = trail
+            })
+        else
+            if trail then trail:Destroy() end
+            if light then light:Destroy() end
+            particle:Destroy()
+        end
+    end
+end
+
+function Particles.create()
+    local particle, light, trail, attachments = Particles.getFromPool()
+    local needsTrail = false
+    
+    if not particle then
+        particle = Instance.new("Part")
+        particle.Name = "MagicalParticle"
+        particle.Size = Vector3.new(0.9, 0.9, 0.9)
+        particle.Shape = Enum.PartType.Ball
+        particle.Material = Enum.Material.Neon
+        particle.Color = ParticleSystem.ParticleColor
+        particle.CanCollide = false
+        particle.Anchored = true
+        particle.Transparency = 0
+        particle.CastShadow = false
+        particle.Parent = ParticleFolder
+        
+        light = Instance.new("PointLight")
+        light.Brightness = 2.5
+        light.Range = 10
+        light.Color = ParticleSystem.ParticleColor
+        light.Enabled = true
+        light.Parent = particle
+        
+        attachments = {}
+        local attachment0 = Instance.new("Attachment")
+        attachment0.Parent = particle
+        table.insert(attachments, attachment0)
+        
+        local attachment1 = Instance.new("Attachment")
+        attachment1.Parent = particle
+        attachment1.Position = Vector3.new(0, -0.6, 0)
+        table.insert(attachments, attachment1)
+        
+        trail = Instance.new("Trail")
+        trail.Lifetime = 0.5
+        trail.MinLength = 0.1
+        trail.FaceCamera = true
+        trail.LightEmission = 0.8
+        trail.Enabled = true
+        trail.Attachment0 = attachment0
+        trail.Attachment1 = attachment1
+        trail.Parent = particle
+        
+        needsTrail = true
+    else
+        particle.Transparency = 0
+        if light then
+            light.Enabled = true
+        end
+        if trail then
+            trail.Enabled = true
+        end
+    end
+    
+    particle.Color = ParticleSystem.ParticleColor
+    if light then
+        light.Color = ParticleSystem.ParticleColor
+    end
+    if trail then
+        trail.Color = ColorSequence.new(ParticleSystem.ParticleColor)
+        
+        if needsTrail then
+            trail.Transparency = NumberSequence.new({
+                NumberSequenceKeypoint.new(0, 0.4),
+                NumberSequenceKeypoint.new(1, 1)
+            })
+            trail.WidthScale = NumberSequence.new({
+                NumberSequenceKeypoint.new(0, 1),
+                NumberSequenceKeypoint.new(1, 0)
+            })
+        end
+    end
+    
+    ACTIVE_PARTICLES += 1
+    return particle, light, trail, attachments
+end
+
+function Particles.get_player_position()
+    local now = tick()
+    if now - lastPositionUpdate > POSITION_UPDATE_INTERVAL then
+        local character = LocalPlayer.Character
+        if character and character:FindFirstChild("HumanoidRootPart") then
+            cachedPlayerPosition = character.HumanoidRootPart.Position
+        else
+            cachedPlayerPosition = CAMERA.CFrame.Position
+        end
+        lastPositionUpdate = now
+    end
+    return cachedPlayerPosition
+end
+
+function Particles.spawn()
+    if not ParticleSystem.Enabled or ACTIVE_PARTICLES >= ParticleSystem.MaxParticles then 
+        return 
+    end
+    
+    local player_pos = Particles.get_player_position()
+    
+    local cameraPos = CAMERA.CFrame.Position
+    local spawnDistance = ParticleSystem.SpawnArea * 1.2
+    local random_x = player_pos.X + math.random(-ParticleSystem.SpawnArea, ParticleSystem.SpawnArea)
+    local random_z = player_pos.Z + math.random(-ParticleSystem.SpawnArea, ParticleSystem.SpawnArea)
+    local spawn_y = player_pos.Y + ParticleSystem.SpawnHeight
+    
+    local spawnPos = Vector3.new(random_x, spawn_y, random_z)
+    if (spawnPos - cameraPos).Magnitude > spawnDistance + 200 then
+        return
+    end
+    
+    local particle, light, trail, attachments = Particles.create()
+    particle.Position = spawnPos
+    
+    local velocityX = math.random(-2, 2)
+    local velocityZ = math.random(-2, 2)
+    local rotX = math.random(-3, 3)
+    local rotY = math.random(-3, 3)
+    local rotZ = math.random(-3, 3)
+    local floatAmp = math.random(2, 5)
+    local floatFreq = math.random(2, 4)
+    
+    local particle_data = {
+        Part = particle,
+        Light = light,
+        Trail = trail,
+        Attachments = attachments,
+        Velocity = Vector3.new(velocityX, -ParticleSystem.FallSpeed, velocityZ),
+        RotationSpeed = Vector3.new(rotX, rotY, rotZ),
+        FloatAmplitude = floatAmp,
+        FloatFrequency = floatFreq,
+        TimeAlive = 0,
+        LastPosition = spawnPos
+    }
+    
+    table.insert(ParticleSystem.Particles, particle_data)
+end
+
+function Particles.update(delta_time)
+    local player_pos = Particles.get_player_position()
+    local cameraPos = CAMERA.CFrame.Position
+    local maxDistance = ParticleSystem.SpawnArea * 1.5
+    
+    for i = #ParticleSystem.Particles, 1, -1 do
+        local particle_data = ParticleSystem.Particles[i]
+        local particle = particle_data.Part
+        
+        if not particle or not particle.Parent then
+            table.remove(ParticleSystem.Particles, i)
+            ACTIVE_PARTICLES = math.max(0, ACTIVE_PARTICLES - 1)
+            continue
+        end
+        
+        particle_data.TimeAlive = particle_data.TimeAlive + delta_time
+        
+        local float_x, float_z = 0, 0
+        if particle_data.FloatAmplitude > 0 then
+            local timeFreq = particle_data.TimeAlive * particle_data.FloatFrequency
+            float_x = math.sin(timeFreq) * particle_data.FloatAmplitude * delta_time
+            float_z = math.cos(timeFreq) * particle_data.FloatAmplitude * delta_time
+        end
+        
+        local vel = particle_data.Velocity
+        local new_position = Vector3.new(
+            particle_data.LastPosition.X + vel.X * delta_time + float_x,
+            particle_data.LastPosition.Y + vel.Y * delta_time,
+            particle_data.LastPosition.Z + vel.Z * delta_time + float_z
+        )
+        
+        particle.Position = new_position
+        particle_data.LastPosition = new_position
+        
+        particle.Orientation = particle.Orientation + particle_data.RotationSpeed
+        
+        local distance_to_player = (new_position - player_pos).Magnitude
+        local distance_to_camera = (new_position - cameraPos).Magnitude
+        
+        if particle_data.Light then
+            particle_data.Light.Enabled = distance_to_camera < 150
+        end
+        
+        if distance_to_player > maxDistance or new_position.Y < player_pos.Y - 20 then
+            Particles.returnToPool(
+                particle_data.Part,
+                particle_data.Light,
+                particle_data.Trail,
+                particle_data.Attachments
+            )
+            table.remove(ParticleSystem.Particles, i)
+            ACTIVE_PARTICLES = math.max(0, ACTIVE_PARTICLES - 1)
+        end
+    end
+end
+
+function Particles.clear_all()
+    for i = #ParticleSystem.Particles, 1, -1 do
+        local particle_data = ParticleSystem.Particles[i]
+        if particle_data then
+            Particles.returnToPool(
+                particle_data.Part,
+                particle_data.Light,
+                particle_data.Trail,
+                particle_data.Attachments
+            )
+        end
+        table.remove(ParticleSystem.Particles, i)
+    end
+    ACTIVE_PARTICLES = 0
+    
+    for _, particleData in ipairs(ParticlePool) do
+        if particleData.trail then particleData.trail:Destroy() end
+        if particleData.light then particleData.light:Destroy() end
+        if particleData.part then particleData.part:Destroy() end
+    end
+    ParticlePool = {}
+end
+
+function Particles.update_colors()
+    for _, particle_data in ipairs(ParticleSystem.Particles) do
+        if particle_data.Part then
+            particle_data.Part.Color = ParticleSystem.ParticleColor
+            if particle_data.Light then
+                particle_data.Light.Color = ParticleSystem.ParticleColor
+            end
+            if particle_data.Trail then
+                particle_data.Trail.Color = ColorSequence.new(ParticleSystem.ParticleColor)
+            end
+        end
+    end
+end
+
+local BallSystem = {}
+local ballsCache = nil
+local lastBallsCheck = 0
+local BALLS_CHECK_INTERVAL = 0.5
+
+local lastValidBall = nil
+local lastBallCheckTime = 0
+
+function BallSystem.get_ball()
+    local now = tick()
+    
+    if lastValidBall and now - lastBallCheckTime < 0.1 then
+        if lastValidBall.Parent and lastValidBall.Parent.Parent == workspace then
+            return lastValidBall
+        end
+    end
+    
+    if not ballsCache or now - lastBallsCheck > BALLS_CHECK_INTERVAL then
+        ballsCache = workspace:FindFirstChild('Balls')
+        lastBallsCheck = now
+    end
+    
+    if not ballsCache then 
+        lastValidBall = nil
+        return nil 
+    end
+    
+    for _, ball in pairs(ballsCache:GetChildren()) do
+        if ball:IsA("BasePart") or ball:IsA("MeshPart") then
+            if not ball:GetAttribute('realBall') then
+                ball.CanCollide = false
+                lastValidBall = ball
+                lastBallCheckTime = now
+                return ball
+            end
+        end
+    end
+    
+    lastValidBall = nil
+    return nil
+end
+
+local PlasmaTrails = {
+    Active = false,
+    Enabled = false,
+    TrailAttachments = {},
+    NumTrails = 8,
+    TrailColor = Color3.fromRGB(0, 255, 255)
+}
+
+local Plasma = {}
+local plasmaPool = {}
+
+function Plasma.get_trail_from_pool()
+    if #plasmaPool > 0 then
+        return table.remove(plasmaPool)
+    end
+    return nil
+end
+
+function Plasma.return_trail_to_pool(trailData)
+    if trailData and #plasmaPool < 20 then
+        trailData.trail.Enabled = false
+        trailData.attachment0:Destroy()
+        trailData.attachment1:Destroy()
+        trailData.trail.Parent = nil
+        table.insert(plasmaPool, trailData)
+    elseif trailData then
+        trailData.trail:Destroy()
+        trailData.attachment0:Destroy()
+        trailData.attachment1:Destroy()
+    end
+end
+
+function Plasma.create_trails(ball)
+    if not ball or not ball.Parent then return end
+    if PlasmaTrails.Active then return end
+    
+    PlasmaTrails.Active = true
+    PlasmaTrails.TrailAttachments = {}
+    
+    for _, child in ipairs(ball:GetChildren()) do
+        if child.Name:find("PlasmaTrail_") or child.Name:find("PlasmaAttachment") then
+            child:Destroy()
+        end
+    end
+    
+    for _, trailData in ipairs(plasmaPool) do
+        if trailData.trail then trailData.trail:Destroy() end
+        if trailData.attachment0 then trailData.attachment0:Destroy() end
+        if trailData.attachment1 then trailData.attachment1:Destroy() end
+    end
+    plasmaPool = {}
+    
+    local cameraPos = CAMERA.CFrame.Position
+    local ballPos = ball.Position
+    local distance = (ballPos - cameraPos).Magnitude
+    
+    local effectiveNumTrails = PlasmaTrails.NumTrails
+    if distance > 200 then
+        effectiveNumTrails = math.floor(PlasmaTrails.NumTrails * 0.7)
+    elseif distance > 400 then
+        effectiveNumTrails = math.floor(PlasmaTrails.NumTrails * 0.4)
+    end
+    
+    for i = 1, effectiveNumTrails do
+        local trailData = {}
+        trailData.attachment0 = Instance.new("Attachment")
+        trailData.attachment0.Name = "PlasmaAttachment0_" .. i
+        trailData.attachment0.Parent = ball
+        
+        trailData.attachment1 = Instance.new("Attachment")
+        trailData.attachment1.Name = "PlasmaAttachment1_" .. i
+        trailData.attachment1.Parent = ball
+        
+        trailData.trail = Instance.new("Trail")
+        trailData.trail.Name = "PlasmaTrail_" .. i
+        trailData.trail.Lifetime = 0.6
+        trailData.trail.MinLength = 0
+        trailData.trail.FaceCamera = true
+        trailData.trail.LightEmission = 1
+        trailData.trail.LightInfluence = 0
+        trailData.trail.Texture = "rbxassetid://5029929719"
+        trailData.trail.TextureMode = Enum.TextureMode.Stretch
+        trailData.trail.Enabled = true
+        trailData.trail.Attachment0 = trailData.attachment0
+        trailData.trail.Attachment1 = trailData.attachment1
+        trailData.trail.Parent = ball
+        
+        local base_color = PlasmaTrails.TrailColor
+        trailData.trail.Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, base_color),
+            ColorSequenceKeypoint.new(0.5, Color3.new(
+                math.min(base_color.R * 1.3, 1),
+                math.min(base_color.G * 1.3, 1),
+                math.min(base_color.B * 1.3, 1)
+            )),
+            ColorSequenceKeypoint.new(1, base_color)
+        })
+        
+        trailData.trail.Transparency = NumberSequence.new({
+            NumberSequenceKeypoint.new(0, 0.2),
+            NumberSequenceKeypoint.new(0.3, 0),
+            NumberSequenceKeypoint.new(0.7, 0.3),
+            NumberSequenceKeypoint.new(1, 1)
+        })
+        
+        trailData.trail.WidthScale = NumberSequence.new({
+            NumberSequenceKeypoint.new(0, 0.1),
+            NumberSequenceKeypoint.new(0.3, 0.25),
+            NumberSequenceKeypoint.new(0.7, 0.15),
+            NumberSequenceKeypoint.new(1, 0.02)
+        })
+        
+        local angle = (i / effectiveNumTrails) * math.pi * 2
+        local radius = math.random(150, 250) / 100
+        local height = math.random(-150, 150) / 100
+        
+        trailData.baseAngle = angle
+        trailData.angle = 0
+        trailData.speed = math.random(15, 30) / 10
+        trailData.spiralSpeed = math.random(25, 45) / 10
+        trailData.radiusMultiplier = math.random(80, 130) / 100
+        trailData.pulseOffset = math.random() * math.pi * 2
+        trailData.baseRadius = radius
+        trailData.baseHeight = height
+        trailData.chaosSpeed = math.random(10, 20) / 10
+        trailData.lastUpdate = 0
+        
+        table.insert(PlasmaTrails.TrailAttachments, trailData)
+    end
+end
+
+function Plasma.animate_trails(ball, delta_time)
+    if not PlasmaTrails.Active or not ball then return end
+    
+    local time = tick()
+    local cameraPos = CAMERA.CFrame.Position
+    local ballPos = ball.Position
+    local distance = (ballPos - cameraPos).Magnitude
+    
+    local updateInterval = 0.016
+    if distance > 300 then updateInterval = 0.033 end
+    if distance > 600 then updateInterval = 0.066 end
+    
+    for _, trail_data in ipairs(PlasmaTrails.TrailAttachments) do
+        if time - trail_data.lastUpdate > updateInterval then
+            trail_data.angle = trail_data.angle + trail_data.speed * delta_time
+            
+            local spiral_angle = trail_data.angle * trail_data.spiralSpeed
+            local pulse = math.sin(time * 4 + trail_data.pulseOffset) * 0.4 + 1
+            local twist = math.sin(trail_data.angle * 3) * 0.7
+            local chaos = math.sin(time * trail_data.chaosSpeed + trail_data.pulseOffset) * 0.5
+            
+            local radius1 = trail_data.baseRadius * trail_data.radiusMultiplier * pulse
+            local radius2 = trail_data.baseRadius * 1.3 * trail_data.radiusMultiplier * pulse
+            
+            local spiral_offset1 = Vector3.new(
+                math.cos(spiral_angle) * 0.6,
+                math.sin(spiral_angle * 2) * 0.6,
+                math.sin(spiral_angle) * 0.6
+            )
+            
+            local spiral_offset2 = Vector3.new(
+                math.sin(spiral_angle * 1.3) * 0.5,
+                math.cos(spiral_angle * 1.7) * 0.5,
+                math.cos(spiral_angle * 1.1) * 0.5
+            )
+            
+            trail_data.attachment0.Position = Vector3.new(
+                math.cos(trail_data.baseAngle + trail_data.angle) * radius1,
+                trail_data.baseHeight + math.sin((trail_data.baseAngle + trail_data.angle) * 3) * 0.8 + twist + chaos,
+                math.sin(trail_data.baseAngle + trail_data.angle) * radius1
+            ) + spiral_offset1
+            
+            trail_data.attachment1.Position = Vector3.new(
+                math.cos(trail_data.baseAngle + trail_data.angle + math.pi * 0.7) * radius2,
+                -trail_data.baseHeight + math.cos((trail_data.baseAngle + trail_data.angle) * 2.5) * 0.8 - twist - chaos,
+                math.sin(trail_data.baseAngle + trail_data.angle + math.pi * 0.7) * radius2
+            ) + spiral_offset2
+            
+            local brightness = (math.sin(time * 5 + trail_data.pulseOffset) * 0.4 + 0.6)
+            trail_data.trail.LightEmission = brightness
+            
+            trail_data.lastUpdate = time
+        end
+    end
+end
+
+function Plasma.cleanup_trails(ball)
+    for _, trail_data in ipairs(plasmaPool) do
+        if trail_data.trail then trail_data.trail:Destroy() end
+        if trail_data.attachment0 then trail_data.attachment0:Destroy() end
+        if trail_data.attachment1 then trail_data.attachment1:Destroy() end
+    end
+    plasmaPool = {}
+    
+    for _, trail_data in ipairs(PlasmaTrails.TrailAttachments) do
+        if trail_data and trail_data.trail then
+            trail_data.trail:Destroy()
+        end
+        if trail_data and trail_data.attachment0 then
+            trail_data.attachment0:Destroy()
+        end
+        if trail_data and trail_data.attachment1 then
+            trail_data.attachment1:Destroy()
+        end
+    end
+    
+    PlasmaTrails.Active = false
+    PlasmaTrails.TrailAttachments = {}
+    
+    if ball and ball.Parent then
+        for _, child in ipairs(ball:GetChildren()) do
+            if child.Name:find("PlasmaTrail_") or child.Name:find("PlasmaAttachment") then
+                child:Destroy()
+            end
+        end
+    end
+end
+
+function Plasma.update_trail_colors(ball)
+    if not ball then return end
+    
+    for _, trail_data in ipairs(PlasmaTrails.TrailAttachments) do
+        local trail = trail_data.trail
+        if trail then
+            local base_color = PlasmaTrails.TrailColor
+            trail.Color = ColorSequence.new({
+                ColorSequenceKeypoint.new(0, base_color),
+                ColorSequenceKeypoint.new(0.5, Color3.new(
+                    math.min(base_color.R * 1.3, 1),
+                    math.min(base_color.G * 1.3, 1),
+                    math.min(base_color.B * 1.3, 1)
+                )),
+                ColorSequenceKeypoint.new(1, base_color)
+            })
+        end
+    end
+end
+
+local last_ball = nil
+local last_ball_id = nil
+local spawn_timer = 0
+local spawn_interval = 0.04
+local frameCount = 0
+
+local rainbowSpeed = 0.4
+
+local function optimizedHeartbeat(delta_time)
+    frameCount = frameCount + 1
+    
+    local updateParticles = true
+    if ACTIVE_PARTICLES > 2000 and frameCount % 2 == 0 then
+        updateParticles = false
+    end
+    
+    if ParticleSystem.Enabled and updateParticles then
+        spawn_timer = spawn_timer + delta_time
+        
+        if spawn_timer >= spawn_interval then
+            local particlesToSpawn = math.min(ParticleSystem.SpawnRate, 
+                ParticleSystem.MaxParticles - ACTIVE_PARTICLES)
+            
+            for i = 1, particlesToSpawn do
+                Particles.spawn()
+            end
+            spawn_timer = 0
+        end
+        
+        Particles.update(delta_time)
+    elseif not updateParticles then
+        spawn_timer = 0
+    end
+    
+    if PlasmaTrails.Enabled then
+        local ball = BallSystem.get_ball()
+        
+        if ball then
+            local ball_id = ball:GetFullName()
+            
+            if not last_ball or ball_id ~= last_ball_id then
+                if last_ball then
+                    Plasma.cleanup_trails(last_ball)
+                end
+                
+                Plasma.create_trails(ball)
+                last_ball = ball
+                last_ball_id = ball_id
+            end
+            
+            if PlasmaTrails.Active then
+                Plasma.animate_trails(ball, delta_time)
+            end
+        else
+            if last_ball then
+                Plasma.cleanup_trails(last_ball)
+                last_ball = nil
+                last_ball_id = nil
+            end
+        end
+    else
+        if last_ball then
+            Plasma.cleanup_trails(last_ball)
+            last_ball = nil
+            last_ball_id = nil
+        end
+    end
+end
+
+RunService.Heartbeat:Connect(optimizedHeartbeat)
+
+local ColorNames = {
+    red = Color3.fromRGB(255, 0, 0),
+    blue = Color3.fromRGB(0, 0, 255),
+    green = Color3.fromRGB(0, 255, 0),
+    yellow = Color3.fromRGB(255, 255, 0),
+    purple = Color3.fromRGB(128, 0, 128),
+    pink = Color3.fromRGB(255, 105, 180),
+    orange = Color3.fromRGB(255, 165, 0),
+    white = Color3.fromRGB(255, 255, 255),
+    black = Color3.fromRGB(0, 0, 0),
+    cyan = Color3.fromRGB(0, 255, 255),
+    magenta = Color3.fromRGB(255, 0, 255),
+    lime = Color3.fromRGB(50, 205, 50),
+    teal = Color3.fromRGB(0, 128, 128),
+    lavender = Color3.fromRGB(230, 230, 250),
+    brown = Color3.fromRGB(165, 42, 42),
+    navy = Color3.fromRGB(0, 0, 128),
+    olive = Color3.fromRGB(128, 128, 0),
+    maroon = Color3.fromRGB(128, 0, 0),
+    gray = Color3.fromRGB(128, 128, 128),
+    gold = Color3.fromRGB(255, 215, 0),
+    silver = Color3.fromRGB(192, 192, 192)
+}
+
+local particle_module = nil
+local plasma_module = nil
+
+local function initializeUIModules()
+    if visuals and type(visuals.create_module) == "function" then
+        particle_module = visuals:create_module({
+            title = 'Rain',
+            description = 'Particle rain effect',
+            section = 'left',
+            flag = 'particle_rain_module',
+            callback = function(state)
+                ParticleSystem.Enabled = state
+                if not state then
+                    Particles.clear_all()
+                end
+            end,
+        })
+
+        if particle_module then
+            particle_module:AddSlider({
+    Title = "Slider",
+    Min = 0,
+    Max = 100,
+    Default = 50,
+    Increment = 1,
+    Callback = function(v)
+                    ParticleSystem.MaxParticles = v
+                    while ACTIVE_PARTICLES > v do
+                        if #ParticleSystem.Particles > 0 then
+                            local p = table.remove(ParticleSystem.Particles)
+                            if p then
+                                Particles.returnToPool(
+                                    p.Part,
+                                    p.Light,
+                                    p.Trail,
+                                    p.Attachments
+                                )
+                            end
+})
+
+            particle_module:AddSlider({
+    Title = "Slider",
+    Min = 0,
+    Max = 100,
+    Default = 50,
+    Increment = 1,
+    Callback = function(v)
+                    ParticleSystem.SpawnRate = v
+                end
+})
+
+            particle_module:AddSlider({
+    Title = "Slider",
+    Min = 0,
+    Max = 100,
+    Default = 50,
+    Increment = 1,
+    Callback = function(v)
+                    ParticleSystem.FallSpeed = v
+                    for _, p in ipairs(ParticleSystem.Particles) do
+                        p.Velocity = Vector3.new(p.Velocity.X, -v, p.Velocity.Z)
+                    end
+})
+
+            particle_module:create_textbox({
+                title = 'Particle Color',
+                placeholder = "Enter color name (ex: red, blue)",
+                flag = 'particle_color_text',
+                callback = function(text)
+                    text = string.lower(text or "")
+                    if ColorNames[text] then
+                        ParticleSystem.ParticleColor = ColorNames[text]
+                        Particles.update_colors()
+                    end
+                end,
+            })
+
+            particle_module:AddSlider({
+    Title = "Slider",
+    Min = 0,
+    Max = 100,
+    Default = 50,
+    Increment = 1,
+    Callback = function(v)
+                    rainbowSpeed = v
+                end
+})
+
+            particle_module:create_checkbox({
+                title = "Rainbow Particles",
+                flag = "rainbow_particles",
+                callback = function(state)
+                    if state then
+                        if _G.RainbowLoop then return end
+                        _G.RainbowLoop = RunService.Heartbeat:Connect(function(delta)
+                            local now = tick()
+                            if not _G.lastRainbowUpdate or now - _G.lastRainbowUpdate > 0.1 then
+                                local t = os.clock()
+                                ParticleSystem.ParticleColor = Color3.fromHSV((t * rainbowSpeed) % 1, 1, 1)
+                                Particles.update_colors()
+                                _G.lastRainbowUpdate = now
+                            end
+                        end)
+                    else
+                        if _G.RainbowLoop then
+                            _G.RainbowLoop:Disconnect()
+                            _G.RainbowLoop = nil
+                            _G.lastRainbowUpdate = nil
+                        end
+                    end
+                end,
+            })
+
+            plasma_module = visuals:create_module({
+                title = 'Ball Trail',
+                description = 'Adds trails to the ball',
+                section = 'right',
+                flag = 'plasma_trails_module',
+                callback = function(state)
+                    PlasmaTrails.Enabled = state
+                    if not state and last_ball then
+                        Plasma.cleanup_trails(last_ball)
+                        last_ball = nil
+                        last_ball_id = nil
+                    end
+                end,
+            })
+
+            if plasma_module then
+                plasma_module:AddSlider({
+    Title = "Slider",
+    Min = 0,
+    Max = 100,
+    Default = 50,
+    Increment = 1,
+    Callback = function(v)
+                        PlasmaTrails.NumTrails = v
+                        if last_ball then
+                            Plasma.cleanup_trails(last_ball)
+                            if PlasmaTrails.Enabled then
+                                Plasma.create_trails(last_ball)
+                            end
+})
+
+                plasma_module:create_textbox({
+                    title = 'Trail Color',
+                    placeholder = "Enter color name (ex: pink, green)",
+                    flag = 'trail_color_text',
+                    callback = function(text)
+                        text = string.lower(text or "")
+                        if ColorNames[text] then
+                            PlasmaTrails.TrailColor = ColorNames[text]
+                            if last_ball then
+                                Plasma.update_trail_colors(last_ball)
+                            end
+                        end
+                    end,
+                })
+
+                plasma_module:AddSlider({
+    Title = "Slider",
+    Min = 0,
+    Max = 100,
+    Default = 50,
+    Increment = 1,
+    Callback = function(v)
+                        _G.rainbowTrailSpeed = v
+                    end
+})
+
+                plasma_module:create_checkbox({
+                    title = "Rainbow Trail",
+                    flag = "rainbow_trail",
+                    callback = function(state)
+                        if state then
+                            if _G.RainbowTrailLoop then return end
+                            _G.RainbowTrailLoop = RunService.Heartbeat:Connect(function(delta)
+                                local now = tick()
+                                if not _G.lastTrailRainbowUpdate or now - _G.lastTrailRainbowUpdate > 0.1 then
+                                    local t = os.clock()
+                                    local speed = _G.rainbowTrailSpeed or 0.4
+                                    local c = Color3.fromHSV((t * speed) % 1, 1, 1)
+                                    PlasmaTrails.TrailColor = c
+                                    if last_ball then
+                                        Plasma.update_trail_colors(last_ball)
+                                    end
+                                    _G.lastTrailRainbowUpdate = now
+                                end
+                            end)
+                        else
+                            if _G.RainbowTrailLoop then
+                                _G.RainbowTrailLoop:Disconnect()
+                                _G.RainbowTrailLoop = nil
+                                _G.lastTrailRainbowUpdate = nil
+                            end
+                        end
+                    end,
+                })
+            end
+        end
+    end
+
+    if misc and misc.create_module then
+        local success, err = pcall(function()
+            local flag_module = misc:create_module({
+                title = 'FFlag Manager',
+                description = 'Manage and apply FFlags (Requires Rejoin)',
+                section = 'right',
+                flag = 'fflag_manager_module',
+                callback = function(state) 
+                end,
+            })
+
+            if flag_module then
+                local selected_profile = "Default (All FFlags)"
+                local apply_checkbox = nil
+
+                if flag_module.create_dropdown then
+                    flag_module:create_dropdown({
+                        title = "Select Flag Profile",
+                        flag = "selected_flag_profile",
+                        options = {"Default (All FFlags)", "Fps Boost", "Lag Ball", "Lag Fix"},
+                        default = "Default (All FFlags)",
+                        callback = function(v)
+                            selected_profile = v
+                        end
+                    })
+                end
+
+                if flag_module.create_checkbox then
+                    apply_checkbox = flag_module:create_checkbox({
+                        title = "Apply & Rejoin",
+                        flag = "apply_rejoin_flag",
+                        callback = function(state)
+                            if state then
+                                -- Desativa imediatamente após ser ativado
+                                if apply_checkbox and apply_checkbox.change_state then
+                                    apply_checkbox:change_state(false)
+                                end
+                                
+                                -- Aplica as flags e faz o rejoin
+                                ApplyFlags(selected_profile or "Default (All FFlags)")
+                            end
+                        end
+                    })
+                end
+            end
+        end)
+        
+        if not success then
+            warn("Erro ao criar módulo FFlag Manager: " .. tostring(err))
+        end
+    end
+end
+
+task.spawn(function()
+    task.wait(1)
+    initializeUIModules()
+end)
+
+game:GetService("Players").LocalPlayer.CharacterRemoving:Connect(function()
+    Particles.clear_all()
+    Plasma.cleanup_trails(last_ball)
+    
+    if _G.RainbowLoop then
+        _G.RainbowLoop:Disconnect()
+        _G.RainbowLoop = nil
+    end
+    
+    if _G.RainbowTrailLoop then
+        _G.RainbowTrailLoop:Disconnect()
+        _G.RainbowTrailLoop = nil
+    end
+end)
+
+local swordInstancesInstance = ReplicatedStorage:WaitForChild("Shared",9e9):WaitForChild("ReplicatedInstances",9e9):WaitForChild("Swords",9e9)
+local swordInstances = require(swordInstancesInstance)
+
+local swordsController
+
+while task.wait() and (not swordsController) do
+    for i,v in getconnections(ReplicatedStorage.Remotes.FireSwordInfo.OnClientEvent) do
+        if v.Function and islclosure(v.Function) then
+            local upvalues = getupvalues(v.Function)
+            if #upvalues == 1 and type(upvalues[1]) == "table" then
+                swordsController = upvalues[1]
+                break
+            end
+        end
+    end
+end
+
+function getSlashName(swordName)
+    if not swordName or not swordInstances then
+        return "SlashEffect"
+    end
+    
+    local success, slashName = pcall(function()
+        local swordData = swordInstances:GetSword(swordName)
+        return (swordData and swordData.SlashName) or "SlashEffect"
+    end)
+    
+    return success and slashName or "SlashEffect"
+end
+
+function setSword()
+    if not getgenv().skinChangerEnabled then return end
+    
+    if not setupvalue then
+        warn("setupvalue não disponível!")
+        return
+    end
+    
+    if not swordInstances then
+        warn("swordInstances não encontrado!")
+        return
+    end
+    
+    pcall(function()
+        setupvalue(rawget(swordInstances, "EquipSwordTo"), 3, false)
+        
+        if getgenv().changeSwordModel and getgenv().swordModel then
+            swordInstances:EquipSwordTo(LocalPlayer.Character, getgenv().swordModel)
+        end
+        
+        if getgenv().changeSwordAnimation and getgenv().swordAnimations then
+            if swordsController and swordsController.SetSword then
+                swordsController:SetSword(getgenv().swordAnimations)
+            end
+        end
+    end)
+end
+
+local playParryFunc
+local parrySuccessAllConnection
+
+while task.wait() and not parrySuccessAllConnection do
+    for i,v in getconnections(ReplicatedStorage.Remotes.ParrySuccessAll.OnClientEvent) do
+        if v.Function and getinfo(v.Function).name == "parrySuccessAll" then
+            parrySuccessAllConnection = v
+            playParryFunc = v.Function
+            v:Disable()
+        end
+    end
+end
+
+local parrySuccessClientConnection
+while task.wait() and not parrySuccessClientConnection do
+    for i,v in getconnections(ReplicatedStorage.Remotes.ParrySuccessClient.Event) do
+        if v.Function and getinfo(v.Function).name == "parrySuccessAll" then
+            parrySuccessClientConnection = v
+            v:Disable()
+        end
+    end
+end
+
+if not getgenv then
+    getgenv = function() return _G end
+end
+
+if not getgenv().skinChangerEnabled then getgenv().skinChangerEnabled = false end
+if not getgenv().changeSwordModel then getgenv().changeSwordModel = false end
+if not getgenv().changeSwordAnimation then getgenv().changeSwordAnimation = false end
+if not getgenv().changeSwordFX then getgenv().changeSwordFX = false end
+if not getgenv().swordModel then getgenv().swordModel = "" end
+if not getgenv().swordAnimations then getgenv().swordAnimations = "" end
+if not getgenv().swordFX then getgenv().swordFX = "" end
+
+getgenv().slashName = getSlashName(getgenv().swordFX)
+
+local lastOtherParryTimestamp = 0
+local clashConnections = {}
+
+ReplicatedStorage.Remotes.ParrySuccessAll.OnClientEvent:Connect(function(...)
+    setthreadidentity(2)
+    local args = {...}
+    if tostring(args[4]) ~= LocalPlayer.Name then
+        lastOtherParryTimestamp = tick()
+    elseif getgenv().skinChangerEnabled and getgenv().changeSwordFX then
+        args[1] = getgenv().slashName
+        args[3] = getgenv().swordFX
+    end
+    return playParryFunc(unpack(args))
+end)
+
+table.insert(clashConnections, getconnections(ReplicatedStorage.Remotes.ParrySuccessAll.OnClientEvent)[1])
+
+getgenv().updateSword = function()
+    if getgenv().changeSwordFX and getgenv().swordFX then
+        getgenv().slashName = getSlashName(getgenv().swordFX)
+    end
+    
+    pcall(function()
+        setSword()
+    end)
+end
+
+task.spawn(function()
+    while task.wait(1) do
+        if getgenv().skinChangerEnabled and getgenv().changeSwordModel then
+            local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+            if LocalPlayer:GetAttribute("CurrentlyEquippedSword") ~= getgenv().swordModel then
+                setSword()
+            end
+            if char and (not char:FindFirstChild(getgenv().swordModel)) then
+                setSword()
+            end
+            for _,v in (char and char:GetChildren()) or {} do
+                if v:IsA("Model") and v.Name ~= getgenv().swordModel then
+                    v:Destroy()
+                end
+                task.wait()
+            end
+        end
+    end
+end)
+
+local SkinChanger = misc:create_module({
+    title = 'Skin Changer',
+    flag = 'SkinChanger',
+    description = 'Skin Changer',
+    section = 'left',
+    callback = function(value: boolean)
+        getgenv().skinChangerEnabled = value
+        if value then
+            pcall(function()
+                if getgenv().updateSword then
+                    getgenv().updateSword()
+                end
+            end)
+        end
+    end
+})
+
+SkinChanger:create_divider({})
+
+local changeSwordModelCheckbox = SkinChanger:create_checkbox({
+    title = "Change Sword Model",
+    flag = "ChangeSwordModel",
+    callback = function(value: boolean)
+        getgenv().changeSwordModel = value
+        if getgenv().skinChangerEnabled then
+            getgenv().updateSword()
+        end
+    end
+})
+
+if changeSwordModelCheckbox and changeSwordModelCheckbox.change_state then 
+    changeSwordModelCheckbox:change_state(true) 
+end
+
+local swordModelTextbox = SkinChanger:create_textbox({
+    title = "￬ Sword Model Name ￬",
+    placeholder = "Enter Sword Model Name...",
+    flag = "SwordModelTextbox",
+    callback = function(text)
+        getgenv().swordModel = text
+        if getgenv().skinChangerEnabled and getgenv().changeSwordModel then
+            getgenv().updateSword()
+        end
+    end
+})
+
+SkinChanger:create_divider({})
+
+local changeSwordAnimationCheckbox = SkinChanger:create_checkbox({
+    title = "Change Sword Animation",
+    flag = "ChangeSwordAnimation",
+    callback = function(value: boolean)
+        getgenv().changeSwordAnimation = value
+        if getgenv().skinChangerEnabled then
+            getgenv().updateSword()
+        end
+    end
+})
+
+if changeSwordAnimationCheckbox and changeSwordAnimationCheckbox.change_state then 
+    changeSwordAnimationCheckbox:change_state(true) 
+end
+
+local swordAnimationTextbox = SkinChanger:create_textbox({
+    title = "￬ Sword Animation Name ￬",
+    placeholder = "Enter Sword Animation Name...",
+    flag = "SwordAnimationTextbox",
+    callback = function(text)
+        getgenv().swordAnimations = text
+        if getgenv().skinChangerEnabled and getgenv().changeSwordAnimation then
+            getgenv().updateSword()
+        end
+    end
+})
+
+SkinChanger:create_divider({})
+
+local changeSwordFXCheckbox = SkinChanger:create_checkbox({
+    title = "Change Sword FX",
+    flag = "ChangeSwordFX",
+    callback = function(value: boolean)
+        getgenv().changeSwordFX = value
+        if getgenv().skinChangerEnabled then
+            getgenv().updateSword()
+        end
+    end
+})
+
+if changeSwordFXCheckbox and changeSwordFXCheckbox.change_state then 
+    changeSwordFXCheckbox:change_state(true) 
+end
+
+local swordFXTextbox = SkinChanger:create_textbox({
+    title = "￬ Sword FX Name ￬",
+    placeholder = "Enter Sword FX Name...",
+    flag = "SwordFXTextbox",
+    callback = function(text)
+        getgenv().swordFX = text
+        if getgenv().skinChangerEnabled and getgenv().changeSwordFX then
+            getgenv().updateSword()
+        end
+    end
+})
+
+SkinChanger:create_divider({})
+
+workspace.ChildRemoved:Connect(function(child)
+    if child.Name == 'Balls' then
+        System.__properties.__cached_balls = nil
+    end
+end)
+
+local balls = workspace:FindFirstChild('Balls')
+if balls then
+    balls.ChildAdded:Connect(function()
+        System.__properties.__parried = false
+        System.__properties.__antidot_parried = false
+    end)
+    
+    balls.ChildRemoved:Connect(function()
+        System.__properties.__parries = 0
+        System.__properties.__parried = false
+        System.__properties.__antidot_parried = false
+    end)
+end
+
+main:load()
