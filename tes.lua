@@ -123,7 +123,7 @@ local Config = {
     
     TP_Offset = 3,
     
-    MENU_Open = false,
+    MENU_Open = true,
     MENU_Tab = 1,
     
     KEY_Menu = Enum.KeyCode.Insert,
