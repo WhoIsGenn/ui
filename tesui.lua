@@ -1,5 +1,3 @@
---v2.2
-
 local HttpService = game:GetService("HttpService") 
 local Players     = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
