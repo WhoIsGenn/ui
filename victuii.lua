@@ -1,4 +1,3 @@
--- // VilarisUi | Version : 0.3.0 | Added: Separator, SubPage, MultiColumn, PageSearch
 -- // Original by VelarisUI team | Features added & integrated
 
 local HttpService = game:GetService("HttpService") 
