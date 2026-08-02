@@ -3088,6 +3088,7 @@ function Elements:CreateDropdown(parent, config, countItem, countDropdown, Dropd
     local DropdownContainer = Instance.new("Frame")
     DropdownContainer.Size = UDim2.new(1, 0, 1, 0)
     DropdownContainer.BackgroundTransparency = 1
+    DropdownContainer.LayoutOrder = countDropdown
     DropdownContainer.Parent = DropdownFolder
     local SearchBox = Instance.new("TextBox")
     SearchBox.PlaceholderText = "Search"
@@ -4704,6 +4705,7 @@ return function(
             SectionCorner.CornerRadius = UDim.new(0, 6)
             SectionCorner.Parent = SectionFrame
 
+            local Chevron
             if SectionConfig.Title and SectionConfig.Title ~= "" then
                 SectionTitle = Instance.new("TextLabel")
                 SectionTitle.Font = Enum.Font.GothamBold
@@ -4713,9 +4715,29 @@ return function(
                 SectionTitle.TextTransparency = 0.2
                 SectionTitle.TextXAlignment = Enum.TextXAlignment.Left
                 SectionTitle.BackgroundTransparency = 1
-                SectionTitle.Size = UDim2.new(1, -20, 0, 26)
+                SectionTitle.Size = UDim2.new(1, -40, 0, 26)
                 SectionTitle.Position = UDim2.new(0, 10, 0, 6)
                 SectionTitle.Parent = SectionFrame
+
+                Chevron = Instance.new("ImageLabel")
+                Chevron.Name = "Chevron"
+                Chevron.BackgroundTransparency = 1
+                Chevron.Image = getIconId("lucide:chevron-down")
+                Chevron.ImageColor3 = Color3.fromRGB(255, 255, 255)
+                Chevron.ImageTransparency = 0.35
+                Chevron.AnchorPoint = Vector2.new(1, 0.5)
+                Chevron.Position = UDim2.new(1, -10, 0, 19)
+                Chevron.Size = UDim2.new(0, 16, 0, 16)
+                Chevron.Parent = SectionFrame
+
+                local HeaderClick = Instance.new("TextButton")
+                HeaderClick.Name = "HeaderClick"
+                HeaderClick.Text = ""
+                HeaderClick.BackgroundTransparency = 1
+                HeaderClick.AutoButtonColor = false
+                HeaderClick.Size = UDim2.new(1, 0, 0, 32)
+                HeaderClick.ZIndex = 5
+                HeaderClick.Parent = SectionFrame
             end
 
             local SectionAdd = Instance.new("Frame")
@@ -4734,6 +4756,30 @@ return function(
             local PadBottom = Instance.new("UIPadding")
             PadBottom.PaddingBottom = UDim.new(0, 10)
             PadBottom.Parent = SectionAdd
+
+            -- // Collapse / expand
+            local collapsed = SectionConfig.Open == false
+            local function applyCollapse(instant)
+                if collapsed then
+                    SectionAdd.Visible = false
+                    SectionFrame.AutomaticSize = Enum.AutomaticSize.None
+                    SectionFrame.Size = UDim2.new(1, 0, 0, 38)
+                    if Chevron then Chevron.Rotation = -90 end
+                else
+                    SectionAdd.Visible = true
+                    SectionFrame.AutomaticSize = Enum.AutomaticSize.Y
+                    SectionFrame.Size = UDim2.new(1, 0, 0, 0)
+                    if Chevron then Chevron.Rotation = 0 end
+                end
+            end
+            applyCollapse(true)
+
+            if SectionFrame:FindFirstChild("HeaderClick") then
+                SectionFrame.HeaderClick.MouseButton1Click:Connect(function()
+                    collapsed = not collapsed
+                    applyCollapse(false)
+                end)
+            end
 
             local countItem = 0
             local function nextCount() countItem = countItem + 1; return countItem end
