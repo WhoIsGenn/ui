@@ -4713,7 +4713,7 @@ return function(
             local Chevron
             local headerHeight = 0
             if SectionConfig.Title and SectionConfig.Title ~= "" then
-                headerHeight = 30
+                headerHeight = 42
 
                 local HeaderBar = Instance.new("Frame")
                 HeaderBar.Name = "HeaderBar"
