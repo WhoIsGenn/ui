@@ -4686,9 +4686,12 @@ return function(
 
         -- // API Section / Items
         local Sections = {}
+        local _sectionCount = 0
 
         function Sections:AddSection(SectionConfig)
             SectionConfig = SectionConfig or {}
+            _sectionCount = _sectionCount + 1
+            local sectionOrder = _sectionCount
             local SectionFrame  = Instance.new("Frame")
             local SectionList   = Instance.new("UIListLayout")
             local SectionTitle
@@ -4699,7 +4702,7 @@ return function(
             SectionFrame.BorderSizePixel = 0
             SectionFrame.AutomaticSize = Enum.AutomaticSize.Y
             SectionFrame.Size = UDim2.new(1, 0, 0, 0)
-            SectionFrame.LayoutOrder = order
+            SectionFrame.LayoutOrder = sectionOrder
             SectionFrame.Parent = TabPage
             local SectionCorner = Instance.new("UICorner")
             SectionCorner.CornerRadius = UDim.new(0, 6)
@@ -4811,9 +4814,10 @@ return function(
 
             function Items:AddDropdown(Cfg)
                 local ci = nextCount()
+                local dropdownIndex = _dropdownCount
                 _dropdownCount = _dropdownCount + 1
                 return ElementsModule:CreateDropdown(
-                    SectionAdd, Cfg, ci, _dropdownCount,
+                    SectionAdd, Cfg, ci, dropdownIndex,
                     DropdownFolder, MoreBlur, DropdownSelect, DropPageLayout, ElementsModule
                 )
             end
