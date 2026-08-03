@@ -1,12 +1,10 @@
--- // VilarisUi | Version : 0.3.0 | Added: Separator, SubPage, MultiColumn, PageSearch
--- // Original by VelarisUI team | Features added & integrated
 
 local HttpService = game:GetService("HttpService") 
 local Players     = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local RunService  = game:GetService("RunService")
 
-local BASE = "https://raw.githubusercontent.com/nhfudzfsrzggt/brigida/refs/heads/main/"
+local BASE = "https://raw.githubusercontent.com/WhoIsGenn/ui/refs/heads/main/victui.lua"
 local function load(path) return loadstring(game:HttpGet(BASE .. path))() end
 local function loadUrl(url) return loadstring(game:HttpGet(url))() end
 
