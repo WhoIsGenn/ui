@@ -1,8 +1,8 @@
 -- LOAD LIB
 local repo = "https://raw.githubusercontent.com/deividcomsono/Obsidian/main/"
-local Library = loadstring(game:HttpGet(repo .. "Library.lua"))()
-local ThemeManager = loadstring(game:HttpGet(repo .. "addons/ThemeManager.lua"))()
-local SaveManager = loadstring(game:HttpGet(repo .. "addons/SaveManager.lua"))()
+local Library = loadstring(game:HttpGet(repo .. "Library.lua", true))()
+local ThemeManager = loadstring(game:HttpGet(repo .. "addons/ThemeManager.lua", true))()
+local SaveManager = loadstring(game:HttpGet(repo .. "addons/SaveManager.lua", true))()
 
 -- =======================================
 Library.Scheme.AccentColor     = Color3.fromRGB(90, 120, 210)
