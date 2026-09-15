@@ -735,7 +735,7 @@ local visualiser_edges = {}
 -- [17] LOAD VICTUI
 -- ================================================================
 local VictUI = loadstring(game:HttpGet(
-    "https://raw.githubusercontent.com/nhfudzfsrzggt/brigida/refs/heads/main/main.lua"
+    "https://raw.githubusercontent.com/WhoIsGenn/ui/refs/heads/main/victui.lua"
 ))()
 
 local function notify(title, desc, dur)
