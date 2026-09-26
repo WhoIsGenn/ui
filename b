@@ -1,7 +1,7 @@
 task.spawn(function()
 
 local Library = loadstring(game:HttpGet(
-    "https://raw.githubusercontent.com/nhfudzfsrzggt/brigida/refs/heads/main/victuinew.lua"
+    "https://raw.githubusercontent.com/WhoIsGenn/ui/refs/heads/main/victui.lua"
 ))()
 
 -- VelarisUI / victuinew: buat window utama
