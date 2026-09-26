@@ -1,10 +1,12 @@
+-- // VilarisUi | Version : 0.3.0 | Added: Separator, SubPage, MultiColumn, PageSearch
+-- // Original by VelarisUI team | Features added & integrated
 
 local HttpService = game:GetService("HttpService") 
 local Players     = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local RunService  = game:GetService("RunService")
 
-local BASE = "https://raw.githubusercontent.com/WhoIsGenn/ui/refs/heads/main/victui.lua"
+local BASE = "https://raw.githubusercontent.com/nhfudzfsrzggt/brigida/refs/heads/main/"
 local function load(path) return loadstring(game:HttpGet(BASE .. path))() end
 local function loadUrl(url) return loadstring(game:HttpGet(url))() end
 
@@ -14943,7 +14945,7 @@ return function(Chloex, getConfigFolder, getCURRENT_VERSION, getConfigData, getE
                     local Elements = getElements()
                     for key, element in pairs(Elements) do
                         if data[key] ~= nil and element.Set then
-                            element:Set(data[key], false)
+                            element:Set(data[key], true)
                         elseif element.Set then
                             element:Set(element.Value, true)
                         end
