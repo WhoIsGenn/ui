@@ -1,17 +1,8 @@
--- ============================================================
---  Puzzle ESP | Nightmare Escape
---  - ESP: Key, PasscodeNote, Enemy (Opah)
---  - Infinite Sprint
---  - Ringan: Highlight instance + update tiap 0.1s
--- ============================================================
-
 local VUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/WhoIsGenn/ui/refs/heads/main/victui.lua"))()
-
 local Players     = game:GetService("Players")
 local Workspace   = game:GetService("Workspace")
 local RunService  = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
 local LocalPlayer = Players.LocalPlayer
 local PuzzleItems = Workspace:WaitForChild("PuzzleItems")
 
@@ -103,10 +94,10 @@ local function refreshItemESP()
         if item.Name == "Key" then
             idx = idx + 1
             addHL(item, Color3.fromRGB(255,215,0), Color3.fromRGB(255,255,100))
-            addBB(item, "🗝️ Key "..idx, Color3.fromRGB(255,215,0))
+            addBB(item, "Key "..idx, Color3.fromRGB(255,215,0))
         elseif item.Name == "PasscodeNote" then
             addHL(item, Color3.fromRGB(0,200,255), Color3.fromRGB(100,255,255))
-            addBB(item, "📋 Passcode", Color3.fromRGB(0,200,255))
+            addBB(item, "Passcode", Color3.fromRGB(0,200,255))
         end
     end
 end
@@ -124,7 +115,7 @@ local function refreshEnemyESP()
     for _, obj in ipairs(Workspace:GetChildren()) do
         if obj.Name == "Opah" then
             addHL(obj, Color3.fromRGB(220,50,50), Color3.fromRGB(255,100,100))
-            addBB(obj, "👹 OPAH", Color3.fromRGB(255,80,80))
+            addBB(obj, "OPAH", Color3.fromRGB(255,80,80))
         end
     end
 end
@@ -162,19 +153,18 @@ end
 local sprintConn
 
 local function startSprint()
-    -- Coba edit SprintConfig di ReplicatedStorage
     local ok = pcall(function()
         local sc = ReplicatedStorage:WaitForChild("SprintSystem", 2)
                     :WaitForChild("SprintConfig", 2)
         for _, v in ipairs(sc:GetChildren()) do
-            -- Biasanya ada NumberValue "StaminaMax", "StaminaDrain" dll
-            if v.Name == "StaminaDrain" or v.Name == "Drain" then
+            
+            if v.Name == "RegenPerSecond" or v.Name == "Drain" then
+                v.Value = 1000
+            end
+            if v.Name == "DrainPerSecond" or v.Name == "Regen" then
                 v.Value = 0
             end
-            if v.Name == "StaminaRegen" or v.Name == "Regen" then
-                v.Value = 999
-            end
-            if v.Name == "StaminaMax" or v.Name == "MaxStamina" then
+            if v.Name == "MaxStamina" or v.Name == "MaxStamina" then
                 v.Value = 9999
             end
         end
@@ -235,7 +225,7 @@ local Tab  = Win:AddTab({ Name = "ESP" })
 local Sec  = Tab:AddSection({ Title = "ESP Settings", Open = true })
 
 Sec:AddToggle({
-    Title    = "🗝️ Item ESP (Key + Note)",
+    Title    = "Item ESP",
     Default  = true,
     Flag     = "ItemESP",
     Callback = function(val)
@@ -246,7 +236,7 @@ Sec:AddToggle({
 })
 
 Sec:AddToggle({
-    Title    = "👹 Enemy ESP (Opah)",
+    Title    = "Enemy ESP",
     Default  = true,
     Flag     = "EnemyESP",
     Callback = function(val)
@@ -256,12 +246,12 @@ Sec:AddToggle({
 })
 
 Sec:AddButton({
-    Title    = "🔄 Refresh ESP",
+    Title    = "Refresh ESP",
     Content  = "Scan ulang semua item & enemy",
     Callback = function()
         refreshItemESP()
         refreshEnemyESP()
-        VUI:MakeNotify({ Title = "✅ Refresh", Content = "ESP di-refresh!", Delay = 2 })
+        VUI:MakeNotify({ Title = "Refresh", Content = "ESP di-refresh!", Delay = 2 })
     end,
 })
 
@@ -270,14 +260,14 @@ local SpTab = Win:AddTab({ Name = "Sprint" })
 local SpSec = SpTab:AddSection({ Title = "Infinite Sprint", Open = true })
 
 SpSec:AddToggle({
-    Title    = "⚡ Infinite Sprint",
+    Title    = "Infinite Sprint",
     Default  = false,
     Flag     = "InfSprint",
     Callback = function(val)
         cfg.infiniteSprint = val
         if val then
             startSprint()
-            VUI:MakeNotify({ Title = "⚡ Sprint", Content = "Infinite sprint aktif!", Delay = 3, Color = Color3.fromRGB(50,200,80) })
+            VUI:MakeNotify({ Title = " Sprint", Content = "Infinite sprint aktif!", Delay = 3, Color = Color3.fromRGB(50,200,80) })
         else
             stopSprint()
             VUI:MakeNotify({ Title = "Sprint", Content = "Sprint normal.", Delay = 2 })
@@ -313,7 +303,7 @@ Workspace.ChildRemoved:Connect(function(obj)
 end)
 
 VUI:MakeNotify({
-    Title   = "✅ Loaded",
+    Title   = "Loaded",
     Content = "ESP aktif | Key=Gold | Note=Cyan | Opah=Red",
     Delay   = 4,
     Color   = Color3.fromRGB(0,170,210),
