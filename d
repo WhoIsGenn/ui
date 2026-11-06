@@ -6,17 +6,14 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local LocalPlayer = Players.LocalPlayer
 local PuzzleItems = Workspace:WaitForChild("PuzzleItems")
 
--- ── Config ───────────────────────────────────────────────────
 local cfg = {
     itemESP    = true,
     enemyESP   = true,
     infiniteSprint = false,
 }
 
--- ── Highlight pool ───────────────────────────────────────────
--- Pakai Highlight (lebih ringan dari SelectionBox)
-local highlights   = {}  -- [model] = Highlight
-local billboards   = {}  -- [model] = { gui, label, base }
+local highlights   = {}
+local billboards   = {}
 
 local function addHL(model, fill, outline)
     if highlights[model] then return end
@@ -42,14 +39,15 @@ local function removeHL(model)
     end
 end
 
-local function clearAll()
-    for model in pairs(highlights) do removeHL(model) end
-end
-
 local function getRoot(model)
-    return model:FindFirstChild("HumanoidRootPart")
-        or model:FindFirstChild("Root")
-        or model:FindFirstChildWhichIsA("BasePart")
+    if not model then return nil end
+    local root = model:FindFirstChild("Root") or model:FindFirstChild("HumanoidRootPart")
+    if root and root:IsA("BasePart") then return root end
+    if model:IsA("BasePart") then return model end
+    for _, v in pairs(model:GetDescendants()) do
+        if v:IsA("BasePart") then return v end
+    end
+    return nil
 end
 
 local function addBB(model, baseLabel, color)
@@ -78,9 +76,7 @@ local function addBB(model, baseLabel, color)
     billboards[model] = { gui = bb, label = lbl, base = baseLabel, root = root }
 end
 
--- ── Refresh ESP (jalankan sekali, bukan tiap frame) ──────────
 local function refreshItemESP()
-    -- Hapus highlight item lama
     for model, _ in pairs(highlights) do
         local name = model.Name
         if name == "Key" or name == "PasscodeNote" then
@@ -103,7 +99,6 @@ local function refreshItemESP()
 end
 
 local function refreshEnemyESP()
-    -- Hapus highlight enemy lama
     for model, _ in pairs(highlights) do
         if model.Name == "Opah" or (model.Parent and model.Parent.Name == "Opah") then
             removeHL(model)
@@ -111,7 +106,6 @@ local function refreshEnemyESP()
     end
     if not cfg.enemyESP then return end
 
-    -- Opah ada di Workspace langsung
     for _, obj in ipairs(Workspace:GetChildren()) do
         if obj.Name == "Opah" then
             addHL(obj, Color3.fromRGB(220,50,50), Color3.fromRGB(255,100,100))
@@ -120,10 +114,8 @@ local function refreshEnemyESP()
     end
 end
 
--- ── Distance update — tiap 0.1s ──────────────────────────────
 local updateConn
 local lastUpdate = 0
-
 local function startUpdateLoop()
     if updateConn then updateConn:Disconnect() end
     updateConn = RunService.Heartbeat:Connect(function()
@@ -145,80 +137,110 @@ local function startUpdateLoop()
     end)
 end
 
-local function stopUpdateLoop()
-    if updateConn then updateConn:Disconnect() updateConn = nil end
-end
-
--- ── Infinite Sprint ──────────────────────────────────────────
 local sprintConn
-
 local function startSprint()
-    local ok = pcall(function()
-        local sc = ReplicatedStorage:WaitForChild("SprintSystem", 2)
-                    :WaitForChild("SprintConfig", 2)
-        for _, v in ipairs(sc:GetChildren()) do
-            
-            if v.Name == "RegenPerSecond" or v.Name == "Drain" then
-                v.Value = 1000
-            end
-            if v.Name == "DrainPerSecond" or v.Name == "Regen" then
-                v.Value = 0
-            end
-            if v.Name == "MaxStamina" or v.Name == "MaxStamina" then
-                v.Value = 9999
-            end
-        end
-    end)
-
-    -- Fallback: langsung manipulasi WalkSpeed via Humanoid saat sprint
-    -- + hold sprint button otomatis via SprintController di character
-    local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-    local hum  = char:FindFirstChildOfClass("Humanoid")
-
-    -- Coba set stamina attribute langsung
     pcall(function()
-        local sprintModel = Workspace:FindFirstChild(LocalPlayer.Name)
-        if sprintModel then
-            local ctrl = sprintModel:FindFirstChild("SprintController")
-            if ctrl then
-                -- Set attribute stamina
-                ctrl:SetAttribute("Stamina", 9999)
-                ctrl:SetAttribute("MaxStamina", 9999)
-            end
+        local sc = ReplicatedStorage:WaitForChild("SprintSystem", 2):WaitForChild("SprintConfig", 2)
+        for _, v in ipairs(sc:GetChildren()) do
+            if v.Name == "RegenPerSecond" or v.Name == "Drain" then v.Value = 1000 end
+            if v.Name == "DrainPerSecond" or v.Name == "Regen" then v.Value = 0 end
+            if v.Name == "MaxStamina" or v.Name == "MaxStamina" then v.Value = 9999 end
         end
     end)
-
-    -- Loop: setiap 0.5s reset stamina attribute di karakter
     if sprintConn then sprintConn:Disconnect() end
     sprintConn = RunService.Heartbeat:Connect(function()
-        local c = LocalPlayer.Character
-        if not c then return end
-        -- Reset via karakter folder (Opah > Rigs > Sprint)
         pcall(function()
             local playerFolder = Workspace:FindFirstChild(LocalPlayer.Name)
             local rigs = playerFolder and playerFolder:FindFirstChild("Rigs")
             local sprintVal = rigs and rigs:FindFirstChild("Sprint")
-            if sprintVal then
-                -- NumberValue atau BoolValue
-                if sprintVal:IsA("NumberValue") then
-                    sprintVal.Value = 9999
-                end
-            end
+            if sprintVal and sprintVal:IsA("NumberValue") then sprintVal.Value = 9999 end
         end)
     end)
 end
+local function stopSprint() if sprintConn then sprintConn:Disconnect() sprintConn = nil end end
 
-local function stopSprint()
-    if sprintConn then sprintConn:Disconnect() sprintConn = nil end
+-- ==========================================
+-- LOGIKA TELEPORT
+-- ==========================================
+local function teleportTo(part, offset)
+    if not part then return end
+    local char = LocalPlayer.Character
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    if hrp then
+        hrp.CFrame = part.CFrame * offset
+    end
+end
+
+local FRONT_DOOR_POS = Vector3.new(301.76, 11.13, -219.63) 
+
+local function teleportToFrontDoor()
+    local char = LocalPlayer.Character
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    if hrp then
+        hrp.CFrame = CFrame.new(FRONT_DOOR_POS)
+        VUI:MakeNotify({ Title = "Teleport", Content = "Ke depan pintu!", Delay = 2 })
+    end
+end
+
+local function teleportToNote()
+    local noteFound = false
+    for _, item in ipairs(PuzzleItems:GetChildren()) do
+        if item.Name == "PasscodeNote" then
+            local part = getRoot(item)
+            if part then
+                teleportTo(part, CFrame.new(0, 3, 0)) 
+                VUI:MakeNotify({ Title = "Teleport", Content = "Ke Kertas Sandi!", Delay = 2 })
+                noteFound = true
+                break
+            end
+        end
+    end
+    if not noteFound then
+        VUI:MakeNotify({ Title = "Gagal", Content = "Kertas (PasscodeNote) ga nemu / udah diambil.", Delay = 2 })
+    end
+end
+
+local function teleportToKey(index)
+    local keysFound = {}
+    for _, item in ipairs(PuzzleItems:GetChildren()) do
+        if item.Name == "Key" then
+            table.insert(keysFound, item)
+        end
+    end
+
+    if keysFound[index] then
+        local keyPart = getRoot(keysFound[index])
+        if keyPart then
+            teleportTo(keyPart, CFrame.new(0, 3, 0))
+            VUI:MakeNotify({ Title = "Teleport", Content = "Berhasil ke Key " .. index, Delay = 2 })
+        end
+    else
+        VUI:MakeNotify({ Title = "Gagal", Content = "Key " .. index .. " udah diambil/ga ada.", Delay = 2 })
+    end
 end
 
 -- ── UI ───────────────────────────────────────────────────────
 local Win = VUI:Window({
-    Title   = "Puzzle Tools",
-    Footer  = "Nightmare Escape",
-    Color   = "Default",
-    Version = "1.0",
-    Size    = UDim2.fromOffset(580, 400),
+    Title         = "Victoria Hub",
+    Footer        = "Gennskie Development",
+    Content       = "Night With Opah",
+    Color         = Color3.fromRGB(0, 170, 210),
+    Size          = UDim2.fromOffset(580, 440),
+    Version       = 1.0,
+    Image = "96751490485303",
+    ["Tab Width"] = 130,
+    Uitransparent = 0.15,
+    ShowUser = true,
+    Search = true, 
+    Animation = true,   -- aktifkan animasi
+    TypeDelay  = 0.07,   -- opsional, default 0.07
+    TypePause  = 2.5,   
+    Config = {
+        ConfigFolder  = "VictoriaHub/Config/" .. tostring(game.PlaceId) .. "/",
+        AutoSaveFile  = "Default",
+        AutoSave      = false,
+        AutoLoad      = true,
+    },
 })
 
 local Tab  = Win:AddTab({ Name = "ESP" })
@@ -227,57 +249,58 @@ local Sec  = Tab:AddSection({ Title = "ESP Settings", Open = true })
 Sec:AddToggle({
     Title    = "Item ESP",
     Default  = true,
-    Flag     = "ItemESP",
-    Callback = function(val)
-        cfg.itemESP = val
-        refreshItemESP()
-        if val then startUpdateLoop() end
+    Callback = function(val) 
+        cfg.itemESP = val 
+        if val then refreshItemESP() else
+            for model, _ in pairs(highlights) do
+                if model.Name == "Key" or model.Name == "PasscodeNote" then removeHL(model) end
+            end
+        end
     end,
 })
 
 Sec:AddToggle({
     Title    = "Enemy ESP",
     Default  = true,
-    Flag     = "EnemyESP",
-    Callback = function(val)
-        cfg.enemyESP = val
-        refreshEnemyESP()
-    end,
-})
-
-Sec:AddButton({
-    Title    = "Refresh ESP",
-    Content  = "Scan ulang semua item & enemy",
-    Callback = function()
-        refreshItemESP()
-        refreshEnemyESP()
-        VUI:MakeNotify({ Title = "Refresh", Content = "ESP di-refresh!", Delay = 2 })
-    end,
-})
-
--- Sprint tab
-local SpTab = Win:AddTab({ Name = "Sprint" })
-local SpSec = SpTab:AddSection({ Title = "Infinite Sprint", Open = true })
-
-SpSec:AddToggle({
-    Title    = "Infinite Sprint",
-    Default  = false,
-    Flag     = "InfSprint",
-    Callback = function(val)
-        cfg.infiniteSprint = val
-        if val then
-            startSprint()
-            VUI:MakeNotify({ Title = " Sprint", Content = "Infinite sprint aktif!", Delay = 3, Color = Color3.fromRGB(50,200,80) })
-        else
-            stopSprint()
-            VUI:MakeNotify({ Title = "Sprint", Content = "Sprint normal.", Delay = 2 })
+    Callback = function(val) 
+        cfg.enemyESP = val 
+        if val then refreshEnemyESP() else
+            for model, _ in pairs(highlights) do
+                if model.Name == "Opah" or (model.Parent and model.Parent.Name == "Opah") then removeHL(model) end
+            end
         end
     end,
 })
 
-SpSec:AddParagraph({
-    Title   = "Info",
-    Content = "Script mencoba reset nilai stamina di SprintConfig & karakter folder. Kalau tidak berhasil penuh, stamina akan terus di-refill tiap frame.",
+local TpTab = Win:AddTab({ Name = "Teleport" })
+local TpSec = TpTab:AddSection({ Title = "Items", Open = true })
+
+TpSec:AddButton({
+    Title    = "Teleport Door",
+    Content  = " ",
+    Callback = function() teleportToFrontDoor() end,
+})
+
+TpSec:AddButton({
+    Title    = "Teleport Passcode",
+    Content  = " ",
+    Callback = function() teleportToNote() end,
+})
+
+local KeySec = TpTab:AddSection({ Title = "Kunci (Key)", Open = true })
+for i = 1, 5 do
+    KeySec:AddButton({
+        Title    = "Teleport Key " .. i,
+        Callback = function() teleportToKey(i) end,
+    })
+end
+
+local SpTab = Win:AddTab({ Name = "Sprint" })
+local SpSec = SpTab:AddSection({ Title = "Infinite Sprint", Open = true })
+SpSec:AddToggle({
+    Title    = "Infinite Sprint",
+    Default  = false,
+    Callback = function(val) if val then startSprint() else stopSprint() end end,
 })
 
 -- ── Init ─────────────────────────────────────────────────────
@@ -285,26 +308,17 @@ refreshItemESP()
 refreshEnemyESP()
 startUpdateLoop()
 
--- Auto refresh item saat diambil/spawn
+-- EVENT: Biar ESP balik lagi kalau karakter mati / respawn
+LocalPlayer.CharacterAdded:Connect(function(char)
+    task.wait(1.5) -- Tunggu 1.5 detik biar map & karakter ke-load sempurna
+    if cfg.itemESP then refreshItemESP() end
+    if cfg.enemyESP then refreshEnemyESP() end
+    if cfg.infiniteSprint then startSprint() end
+end)
+
 PuzzleItems.ChildAdded:Connect(function() task.wait(0.3); refreshItemESP() end)
 PuzzleItems.ChildRemoved:Connect(function() task.wait(0.1); refreshItemESP() end)
+Workspace.ChildAdded:Connect(function(obj) if obj.Name == "Opah" then task.wait(0.3); refreshEnemyESP() end end)
+Workspace.ChildRemoved:Connect(function(obj) if obj.Name == "Opah" then removeHL(obj) end end)
 
--- Auto detect Opah kalau belum spawn
-Workspace.ChildAdded:Connect(function(obj)
-    if obj.Name == "Opah" then
-        task.wait(0.3)
-        refreshEnemyESP()
-    end
-end)
-Workspace.ChildRemoved:Connect(function(obj)
-    if obj.Name == "Opah" then
-        removeHL(obj)
-    end
-end)
-
-VUI:MakeNotify({
-    Title   = "Loaded",
-    Content = "ESP aktif | Key=Gold | Note=Cyan | Opah=Red",
-    Delay   = 4,
-    Color   = Color3.fromRGB(0,170,210),
-})
+VUI:MakeNotify({ Title = "Loaded", Content = "Auto-Respawn ESP aktif!", Delay = 4 })
