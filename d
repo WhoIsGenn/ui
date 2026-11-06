@@ -159,9 +159,6 @@ local function startSprint()
 end
 local function stopSprint() if sprintConn then sprintConn:Disconnect() sprintConn = nil end end
 
--- ==========================================
--- LOGIKA TELEPORT
--- ==========================================
 local function teleportTo(part, offset)
     if not part then return end
     local char = LocalPlayer.Character
@@ -287,7 +284,7 @@ TpSec:AddButton({
     Callback = function() teleportToNote() end,
 })
 
-local KeySec = TpTab:AddSection({ Title = "Kunci (Key)", Open = true })
+local KeySec = TpTab:AddSection({ Title = "Key", Open = true })
 for i = 1, 5 do
     KeySec:AddButton({
         Title    = "Teleport Key " .. i,
