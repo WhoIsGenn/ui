@@ -1,0 +1,368 @@
+-- ============================================================
+--  Puzzle Solver | Nightmare Door Escape
+--  Flow: Bring item → FireClickDetector → baca passcode → unlock padlock
+-- ============================================================
+
+local VUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/WhoIsGenn/ui/refs/heads/main/victui.lua"))()
+
+local Players        = game:GetService("Players")
+local Workspace      = game:GetService("Workspace")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService   = game:GetService("TweenService")
+
+local LocalPlayer    = Players.LocalPlayer
+local Character      = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+local HRP            = Character:WaitForChild("HumanoidRootPart")
+
+-- Remotes
+local PuzzleShared   = ReplicatedStorage:WaitForChild("PuzzleShared")
+local Remotes        = PuzzleShared:WaitForChild("Remotes")
+local PuzzleRemote   = Remotes:WaitForChild("PuzzleRemote")
+local SubmitPasscode = Remotes:WaitForChild("SubmitPasscode")
+
+-- Workspace folders
+local PuzzleItems    = Workspace:WaitForChild("PuzzleItems")
+local FrontDoor      = Workspace:WaitForChild("FrontDoor")
+local PuzzleLocks    = FrontDoor:WaitForChild("PuzzleLocks")
+
+-- ── State ────────────────────────────────────────────────────
+local solvedKeys     = {}
+local passcodeValue  = nil
+local isRunning      = false
+
+-- ── UI ───────────────────────────────────────────────────────
+local Win = VUI:Window({
+    Title   = "Puzzle Solver",
+    Footer  = "Nightmare Escape",
+    Color   = "Default",
+    Version = "1.0",
+    Size    = UDim2.fromOffset(620, 440),
+})
+
+local MainTab   = Win:AddTab({ Name = "Main" })
+local StatusSec = MainTab:AddSection({ Title = "Status", Open = true })
+
+-- Status paragraphs
+local keyStatusPara = {}
+for i = 1, 5 do
+    keyStatusPara[i] = StatusSec:AddParagraph({
+        Title   = "Key " .. i,
+        Content = "⬜ Menunggu...",
+    })
+end
+local noteStatusPara = StatusSec:AddParagraph({
+    Title   = "PasscodeNote",
+    Content = "⬜ Menunggu...",
+})
+local codeStatusPara = StatusSec:AddParagraph({
+    Title   = "Passcode",
+    Content = "⬜ Belum dibaca",
+})
+
+local CtrlSec = MainTab:AddSection({ Title = "Controls", Open = true })
+
+-- ── Helpers ──────────────────────────────────────────────────
+local function notify(title, msg, color)
+    VUI:MakeNotify({
+        Title   = title,
+        Content = tostring(msg),
+        Delay   = 4,
+        Color   = color,
+    })
+end
+
+local function setPara(para, text)
+    if para and para.SetContent then
+        pcall(para.SetContent, para, text)
+    end
+end
+
+-- Bring model/part ke posisi HRP agar ClickDetector bisa difire
+local function bringToChar(model)
+    local root = model:FindFirstChild("Root")
+                 or model:FindFirstChildWhichIsA("BasePart")
+    if root then
+        root.CFrame = HRP.CFrame * CFrame.new(0, 0, -3)
+    end
+end
+
+-- Fire ClickDetector bernama PuzzleClick di dalam model
+local function fireClick(model)
+    local cd = model:FindFirstChild("PuzzleClick", true)
+    if cd and cd:IsA("ClickDetector") then
+        fireclickdetector(cd)
+        return true
+    end
+    return false
+end
+
+-- Fire ProximityPrompt bernama PuzzlePrompt di dalam model
+local function firePrompt(model)
+    local pp = model:FindFirstChild("PuzzlePrompt", true)
+    if pp and pp:IsA("ProximityPrompt") then
+        fireproximityprompt(pp)
+        return true
+    end
+    -- fallback: cari ProximityPrompt apapun
+    local pp2 = model:FindFirstChildWhichIsA("ProximityPrompt", true)
+    if pp2 then
+        fireproximityprompt(pp2)
+        return true
+    end
+    return false
+end
+
+-- Baca passcode dari PasscodeNote > Paper > Writing > Code
+local function readPasscode(noteModel)
+    -- Coba path spesifik dulu
+    local paper   = noteModel:FindFirstChild("Paper")
+    local writing = paper and paper:FindFirstChild("Writing")
+    local code    = writing and writing:FindFirstChild("Code")
+    if code then return tostring(code.Value) end
+
+    -- Fallback: cari StringValue/IntValue bernama Code di mana saja
+    local sv = noteModel:FindFirstChild("Code", true)
+    if sv and (sv:IsA("StringValue") or sv:IsA("IntValue")) then
+        return tostring(sv.Value)
+    end
+
+    -- Fallback: attribute
+    local attr = noteModel:GetAttribute("Code")
+              or noteModel:GetAttribute("Passcode")
+    if attr then return tostring(attr) end
+
+    return nil
+end
+
+-- ── Core Solve ───────────────────────────────────────────────
+local function solveAll()
+    if isRunning then
+        notify("⏳", "Sedang berjalan, tunggu!", nil)
+        return
+    end
+    isRunning = true
+
+    -- Refresh character (respawn safe)
+    Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+    HRP       = Character:WaitForChild("HumanoidRootPart")
+
+    -- Kumpulkan semua item
+    local keys = {}
+    local note = nil
+
+    for _, item in ipairs(PuzzleItems:GetChildren()) do
+        if item.Name == "Key" then
+            table.insert(keys, item)
+        elseif item.Name == "PasscodeNote" then
+            note = item
+        end
+    end
+
+    notify("🔍", "Ditemukan " .. #keys .. " Key" .. (note and " + PasscodeNote" or ""), nil)
+    task.wait(0.5)
+
+    -- Step 1: Ambil semua Key
+    for i, key in ipairs(keys) do
+        if solvedKeys[key] then
+            setPara(keyStatusPara[i], "✅ Sudah diambil")
+        else
+            setPara(keyStatusPara[i], "⏳ Mengambil...")
+
+            -- Bring ke char
+            bringToChar(key)
+            task.wait(0.3)
+
+            -- Fire ClickDetector
+            local ok = fireClick(key)
+            task.wait(0.4)
+
+            if ok then
+                solvedKeys[key] = true
+                setPara(keyStatusPara[i], "✅ Key " .. i .. " diambil")
+                notify("🗝️ Key " .. i, "Berhasil diambil!", Color3.fromRGB(50,200,80))
+            else
+                setPara(keyStatusPara[i], "❌ Gagal (cek PuzzleClick)")
+                notify("❌ Key " .. i, "PuzzleClick tidak ditemukan!", Color3.fromRGB(220,50,50))
+            end
+
+            task.wait(0.3)
+        end
+    end
+
+    -- Step 2: Ambil PasscodeNote
+    if note then
+        setPara(noteStatusPara, "⏳ Mengambil note...")
+        bringToChar(note)
+        task.wait(0.3)
+        fireClick(note)
+        task.wait(0.5)
+        setPara(noteStatusPara, "✅ Note diambil")
+
+        -- Baca passcode
+        local code = readPasscode(note)
+        if code then
+            passcodeValue = code
+            setPara(codeStatusPara, "✅ Code: " .. code)
+            notify("📋 Passcode", "Ditemukan: " .. code, Color3.fromRGB(0,170,210))
+        else
+            setPara(codeStatusPara, "⚠️ Tidak terbaca — isi manual")
+            notify("⚠️ Passcode", "Tidak bisa dibaca otomatis, isi manual!", Color3.fromRGB(255,165,0))
+        end
+    else
+        setPara(noteStatusPara, "❌ PasscodeNote tidak ada")
+    end
+
+    task.wait(0.5)
+
+    -- Step 3: Unlock tiap Padlock (Lock_1 .. Lock_5) via ProximityPrompt
+    for i = 1, 5 do
+        local lockModel = PuzzleLocks:FindFirstChild("Lock_" .. i)
+        if lockModel then
+            -- Bring padlock ke char (ProximityPrompt punya range, tapi bring aman)
+            local padlock = lockModel:FindFirstChild("Padlock")
+            local target  = padlock or lockModel
+            local root    = target:FindFirstChildWhichIsA("BasePart")
+            if root then
+                root.CFrame = HRP.CFrame * CFrame.new(0, 0, -3)
+            end
+            task.wait(0.3)
+
+            local ok = firePrompt(target)
+            task.wait(0.4)
+
+            if ok then
+                notify("🔓 Lock " .. i, "Padlock " .. i .. " dibuka!", Color3.fromRGB(50,200,80))
+            else
+                -- Fallback: fire via PuzzleRemote
+                pcall(function()
+                    PuzzleRemote:FireServer(padlock or lockModel)
+                end)
+                notify("🔓 Lock " .. i, "Fallback remote fired", Color3.fromRGB(255,165,0))
+            end
+            task.wait(0.3)
+        else
+            notify("⚠️", "Lock_" .. i .. " tidak ditemukan", Color3.fromRGB(255,165,0))
+        end
+    end
+
+    -- Step 4: Submit passcode
+    if passcodeValue then
+        task.wait(0.5)
+        local ok, err = pcall(function()
+            SubmitPasscode:FireServer(passcodeValue)
+        end)
+        if ok then
+            notify("🚪 Done!", "Passcode '" .. passcodeValue .. "' submitted! Pintu terbuka!", Color3.fromRGB(0,170,210))
+        else
+            notify("❌ Passcode", tostring(err), Color3.fromRGB(220,50,50))
+        end
+    else
+        notify("⚠️ Passcode", "Belum ada passcode — isi manual lalu Submit!", Color3.fromRGB(255,165,0))
+    end
+
+    isRunning = false
+end
+
+-- ── Buttons ──────────────────────────────────────────────────
+CtrlSec:AddButton({
+    Title    = "🚀 Solve All",
+    Content  = "Ambil semua key + note → unlock semua lock → submit passcode",
+    Callback = function()
+        task.spawn(solveAll)
+    end,
+})
+
+CtrlSec:AddButton({
+    Title    = "🗝️ Ambil Semua Item",
+    Content  = "Bring + FireClick semua Key dan PasscodeNote",
+    Callback = function()
+        task.spawn(function()
+            Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+            HRP = Character:WaitForChild("HumanoidRootPart")
+            for _, item in ipairs(PuzzleItems:GetChildren()) do
+                bringToChar(item)
+                task.wait(0.2)
+                fireClick(item)
+                task.wait(0.3)
+            end
+            notify("✅ Items", "Semua item dicoba diambil!", Color3.fromRGB(50,200,80))
+        end)
+    end,
+})
+
+CtrlSec:AddButton({
+    Title    = "🔓 Unlock Semua Padlock",
+    Content  = "Fire ProximityPrompt tiap Padlock di FrontDoor",
+    Callback = function()
+        task.spawn(function()
+            Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+            HRP = Character:WaitForChild("HumanoidRootPart")
+            for i = 1, 5 do
+                local lockModel = PuzzleLocks:FindFirstChild("Lock_" .. i)
+                if lockModel then
+                    local padlock = lockModel:FindFirstChild("Padlock")
+                    local target  = padlock or lockModel
+                    local root    = target:FindFirstChildWhichIsA("BasePart")
+                    if root then root.CFrame = HRP.CFrame * CFrame.new(0,0,-3) end
+                    task.wait(0.3)
+                    firePrompt(target)
+                    task.wait(0.4)
+                    notify("🔓", "Lock_" .. i .. " fired", Color3.fromRGB(50,200,80))
+                end
+            end
+        end)
+    end,
+})
+
+CtrlSec:AddDivider()
+
+-- Manual passcode
+local manualCode = ""
+CtrlSec:AddInput({
+    Title       = "Manual Passcode",
+    PlaceHolder = "Ketik kode di sini...",
+    Flag        = "ManualCode",
+    Callback    = function(val) manualCode = val end,
+})
+
+CtrlSec:AddButton({
+    Title    = "🔑 Submit Passcode",
+    Content  = "Submit kode manual atau yang sudah terbaca",
+    Callback = function()
+        local code = manualCode ~= "" and manualCode or passcodeValue
+        if not code then
+            notify("⚠️", "Passcode kosong!", Color3.fromRGB(255,165,0))
+            return
+        end
+        local ok, err = pcall(function()
+            SubmitPasscode:FireServer(code)
+        end)
+        if ok then
+            notify("✅ Submitted!", "Code: " .. code, Color3.fromRGB(50,200,80))
+        else
+            notify("❌", tostring(err), Color3.fromRGB(220,50,50))
+        end
+    end,
+})
+
+CtrlSec:AddButton({
+    Title    = "📋 Baca Passcode",
+    Content  = "Coba baca ulang kode dari PasscodeNote",
+    Callback = function()
+        local note = PuzzleItems:FindFirstChild("PasscodeNote")
+        if not note then
+            notify("❌", "PasscodeNote tidak ada di PuzzleItems", Color3.fromRGB(220,50,50))
+            return
+        end
+        local code = readPasscode(note)
+        if code then
+            passcodeValue = code
+            setPara(codeStatusPara, "✅ Code: " .. code)
+            notify("📋 Code", "Passcode: " .. code, Color3.fromRGB(0,170,210))
+        else
+            notify("⚠️", "Tidak bisa dibaca — coba Ambil Note dulu", Color3.fromRGB(255,165,0))
+        end
+    end,
+})
+
+notify("💀 Loaded", "Puzzle Solver siap! Tekan Solve All.", Color3.fromRGB(0,170,210))
